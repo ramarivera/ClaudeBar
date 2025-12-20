@@ -203,4 +203,70 @@ struct QuotaMonitorTests {
         // Then
         #expect(snapshot == nil)
     }
+
+    // MARK: - Auto-Refresh
+
+    @Test
+    func `monitor can start continuous monitoring`() async throws {
+        // Given
+        let mockProbe = MockUsageProbePort()
+        let snapshot = UsageSnapshot(
+            provider: .claude,
+            quotas: [UsageQuota(percentRemaining: 50, quotaType: .session, provider: .claude)],
+            capturedAt: Date()
+        )
+
+        given(mockProbe).provider.willReturn(.claude)
+        given(mockProbe).isAvailable().willReturn(true)
+        given(mockProbe).probe().willReturn(snapshot)
+
+        let monitor = QuotaMonitor(probes: [mockProbe])
+
+        // When
+        let stream = await monitor.startMonitoring(interval: .milliseconds(100))
+        var events: [MonitoringEvent] = []
+
+        // Collect first 2 events
+        for await event in stream.prefix(2) {
+            events.append(event)
+        }
+
+        await monitor.stopMonitoring()
+
+        // Then
+        #expect(events.count == 2)
+        #expect(events.allSatisfy { event in
+            if case .refreshed = event { return true }
+            return false
+        })
+    }
+
+    @Test
+    func `monitor stops when requested`() async throws {
+        // Given
+        let mockProbe = MockUsageProbePort()
+        let snapshot = UsageSnapshot(
+            provider: .claude,
+            quotas: [UsageQuota(percentRemaining: 50, quotaType: .session, provider: .claude)],
+            capturedAt: Date()
+        )
+
+        given(mockProbe).provider.willReturn(.claude)
+        given(mockProbe).isAvailable().willReturn(true)
+        given(mockProbe).probe().willReturn(snapshot)
+
+        let monitor = QuotaMonitor(probes: [mockProbe])
+
+        // When
+        let stream = await monitor.startMonitoring(interval: .milliseconds(50))
+        await monitor.stopMonitoring()
+
+        var eventCount = 0
+        for await _ in stream {
+            eventCount += 1
+        }
+
+        // Then - Stream should finish quickly after stop
+        #expect(eventCount <= 2)
+    }
 }

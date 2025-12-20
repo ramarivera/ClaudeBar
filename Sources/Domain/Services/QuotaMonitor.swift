@@ -1,5 +1,13 @@
 import Foundation
 
+/// Events emitted during continuous monitoring
+public enum MonitoringEvent: Sendable {
+    /// A refresh cycle completed with updated snapshots
+    case refreshed([AIProvider: UsageSnapshot])
+    /// An error occurred during refresh
+    case error(Error)
+}
+
 /// The main domain service that coordinates quota monitoring across AI providers.
 /// This is the aggregate root for the monitoring bounded context.
 public actor QuotaMonitor {
@@ -14,6 +22,12 @@ public actor QuotaMonitor {
 
     /// Previous status for change detection
     private var previousStatuses: [AIProvider: QuotaStatus] = [:]
+
+    /// Current monitoring task
+    private var monitoringTask: Task<Void, Never>?
+
+    /// Whether monitoring is active
+    public private(set) var isMonitoring: Bool = false
 
     // MARK: - Initialization
 
@@ -116,5 +130,49 @@ public actor QuotaMonitor {
         snapshots.values
             .map(\.overallStatus)
             .max() ?? .healthy
+    }
+
+    // MARK: - Continuous Monitoring
+
+    /// Starts continuous monitoring at the specified interval.
+    /// Returns an AsyncStream of monitoring events.
+    public func startMonitoring(interval: Duration = .seconds(60)) -> AsyncStream<MonitoringEvent> {
+        // Stop any existing monitoring
+        monitoringTask?.cancel()
+
+        isMonitoring = true
+
+        return AsyncStream { continuation in
+            let task = Task {
+                while !Task.isCancelled {
+                    do {
+                        let results = try await self.refreshAll()
+                        continuation.yield(.refreshed(results))
+                    } catch {
+                        continuation.yield(.error(error))
+                    }
+
+                    do {
+                        try await Task.sleep(for: interval)
+                    } catch {
+                        break
+                    }
+                }
+                continuation.finish()
+            }
+
+            self.monitoringTask = task
+
+            continuation.onTermination = { _ in
+                task.cancel()
+            }
+        }
+    }
+
+    /// Stops continuous monitoring
+    public func stopMonitoring() {
+        isMonitoring = false
+        monitoringTask?.cancel()
+        monitoringTask = nil
     }
 }

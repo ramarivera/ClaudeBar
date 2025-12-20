@@ -40,6 +40,9 @@ public enum ProbeError: Error, Equatable, LocalizedError, Sendable {
     /// Generic execution error
     case executionFailed(String)
 
+    /// CLI update is required before usage can be checked
+    case updateRequired(String)
+
     public var errorDescription: String? {
         switch self {
         case .cliNotFound(let cli):
@@ -54,6 +57,8 @@ public enum ProbeError: Error, Equatable, LocalizedError, Sendable {
             "Failed to parse CLI output: \(reason)"
         case .executionFailed(let reason):
             "CLI execution failed: \(reason)"
+        case .updateRequired(let reason):
+            "CLI update required: \(reason)"
         }
     }
 }
