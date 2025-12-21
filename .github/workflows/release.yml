@@ -11,6 +11,9 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: write
+
 env:
   APP_NAME: ClaudeBar
   BUNDLE_ID: com.tddworks.claudebar
