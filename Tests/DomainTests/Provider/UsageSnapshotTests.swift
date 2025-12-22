@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Domain
 
-@Suite
+@Suite(.serialized)
 struct UsageSnapshotTests {
 
     // MARK: - Creating Snapshots

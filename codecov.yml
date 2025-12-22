@@ -16,4 +16,5 @@ comment:
 ignore:
   - "Tests/**/*"
   - "Sources/App/Views/**/*"  # UI code - harder to test
+  - "Sources/Infrastructure/Adapters/**/*"  # Pure adapters for 3rd party CLI/APIs
   - "**/*Preview*.swift"  # SwiftUI previews

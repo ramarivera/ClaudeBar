@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import Mockable
 @testable import Infrastructure
 @testable import Domain
 
@@ -7,8 +8,24 @@ import Foundation
 struct ClaudeUsageProbeTests {
 
     @Test
-    func `isAvailable returns false when binary missing`() async {
-        let probe = ClaudeUsageProbe(claudeBinary: "non-existent-binary-123")
+    func `isAvailable returns true when CLI executor finds binary`() async {
+        // Given
+        let mockExecutor = MockCLIExecutor()
+        given(mockExecutor).locate(.any).willReturn("/usr/local/bin/claude")
+        let probe = ClaudeUsageProbe(cliExecutor: mockExecutor)
+
+        // When & Then
+        #expect(await probe.isAvailable() == true)
+    }
+
+    @Test
+    func `isAvailable returns false when CLI executor cannot find binary`() async {
+        // Given
+        let mockExecutor = MockCLIExecutor()
+        given(mockExecutor).locate(.any).willReturn(nil)
+        let probe = ClaudeUsageProbe(cliExecutor: mockExecutor)
+
+        // When & Then
         #expect(await probe.isAvailable() == false)
     }
 
@@ -81,20 +98,6 @@ struct ClaudeUsageProbeTests {
         let probe = ClaudeUsageProbe()
         let output = "Do you trust the files in this folder?\n/Users/test/project\n\nYes/No"
         #expect(probe.extractFolderFromTrustPrompt(output) == "/Users/test/project")
-    }
-
-    @Test
-    func `mapRunError converts errors correctly`() {
-        let probe = ClaudeUsageProbe()
-        
-        let e1 = probe.mapRunError(.binaryNotFound("claude"))
-        if case .cliNotFound(let bin) = e1 { #expect(bin == "claude") } else { Issue.record("Wrong error type") }
-        
-        let e2 = probe.mapRunError(.timedOut)
-        if case .timeout = e2 { } else { Issue.record("Wrong error type") }
-        
-        let e3 = probe.mapRunError(.launchFailed("msg"))
-        if case .executionFailed(let msg) = e3 { #expect(msg == "msg") } else { Issue.record("Wrong error type") }
     }
 
     @Test

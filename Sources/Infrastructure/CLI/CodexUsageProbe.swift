@@ -1,22 +1,71 @@
 import Foundation
 import Domain
+import Mockable
 import os.log
 
 private let logger = Logger(subsystem: "com.claudebar", category: "CodexProbe")
+
+// MARK: - RPC Client Protocol (for testability)
+
+/// Protocol for Codex RPC client - enables mocking for unit tests.
+@Mockable
+public protocol CodexRPCClient: Sendable {
+    func initialize() async throws
+    func fetchRateLimits() async throws -> CodexRateLimitsResponse
+    func shutdown()
+}
+
+/// Response from Codex rate limits API.
+public struct CodexRateLimitsResponse: Sendable, Equatable {
+    public let primary: CodexRateLimitWindow?
+    public let secondary: CodexRateLimitWindow?
+    public let planType: String?
+
+    public init(primary: CodexRateLimitWindow?, secondary: CodexRateLimitWindow?, planType: String? = nil) {
+        self.primary = primary
+        self.secondary = secondary
+        self.planType = planType
+    }
+}
+
+/// A rate limit window from Codex API.
+public struct CodexRateLimitWindow: Sendable, Equatable {
+    public let usedPercent: Double
+    public let resetDescription: String?
+
+    public init(usedPercent: Double, resetDescription: String?) {
+        self.usedPercent = usedPercent
+        self.resetDescription = resetDescription
+    }
+}
+
+/// Factory type for creating RPC clients.
+public typealias CodexRPCClientFactory = @Sendable (String, TimeInterval) throws -> any CodexRPCClient
 
 /// Infrastructure adapter that probes the Codex CLI to fetch usage quotas.
 /// Uses JSON-RPC via `codex app-server` for reliable data fetching.
 public struct CodexUsageProbe: UsageProbe {
     private let codexBinary: String
     private let timeout: TimeInterval
+    private let rpcClientFactory: CodexRPCClientFactory
+    private let cliExecutor: CLIExecutor
 
-    public init(codexBinary: String = "codex", timeout: TimeInterval = 20.0) {
+    public init(
+        codexBinary: String = "codex",
+        timeout: TimeInterval = 20.0,
+        rpcClientFactory: CodexRPCClientFactory? = nil,
+        cliExecutor: CLIExecutor? = nil
+    ) {
         self.codexBinary = codexBinary
         self.timeout = timeout
+        self.rpcClientFactory = rpcClientFactory ?? { binary, timeout in
+            try DefaultCodexRPCClient(executable: binary, timeout: timeout)
+        }
+        self.cliExecutor = cliExecutor ?? DefaultCLIExecutor()
     }
 
     public func isAvailable() async -> Bool {
-        PTYCommandRunner.which(codexBinary) != nil
+        cliExecutor.locate(codexBinary) != nil
     }
 
     public func probe() async throws -> UsageSnapshot {
@@ -41,13 +90,17 @@ public struct CodexUsageProbe: UsageProbe {
     // MARK: - RPC Approach
 
     private func probeViaRPC() async throws -> UsageSnapshot {
-        // Use the binary name directly - the RPC client will use /usr/bin/env to find it
-        let rpc = try CodexRPCClient(executable: codexBinary, timeout: timeout)
+        let rpc = try rpcClientFactory(codexBinary, timeout)
         defer { rpc.shutdown() }
 
         try await rpc.initialize()
         let limits = try await rpc.fetchRateLimits()
 
+        return try Self.mapRateLimitsToSnapshot(limits)
+    }
+
+    /// Maps RPC rate limits response to a UsageSnapshot (internal for testing).
+    internal static func mapRateLimitsToSnapshot(_ limits: CodexRateLimitsResponse) throws -> UsageSnapshot {
         var quotas: [UsageQuota] = []
 
         if let primary = limits.primary {
@@ -84,23 +137,24 @@ public struct CodexUsageProbe: UsageProbe {
     private func probeViaTTY() async throws -> UsageSnapshot {
         logger.info("Starting Codex TTY fallback...")
 
-        let runner = PTYCommandRunner()
-        let options = PTYCommandRunner.Options(
-            timeout: timeout,
-            extraArgs: ["-s", "read-only", "-a", "untrusted"]
-        )
-
-        let result: PTYCommandRunner.Result
+        let result: CLIResult
         do {
-            result = try runner.run(binary: codexBinary, send: "/status\n", options: options)
-        } catch let error as PTYCommandRunner.RunError {
+            result = try cliExecutor.execute(
+                binary: codexBinary,
+                args: ["-s", "read-only", "-a", "untrusted"],
+                input: "/status\n",
+                timeout: timeout,
+                workingDirectory: nil,
+                sendOnSubstrings: [:]
+            )
+        } catch {
             logger.error("Codex TTY failed: \(error.localizedDescription)")
-            throw mapRunError(error)
+            throw ProbeError.executionFailed(error.localizedDescription)
         }
 
-        logger.debug("Codex TTY raw output:\n\(result.text)")
+        logger.debug("Codex TTY raw output:\n\(result.output)")
 
-        let snapshot = try Self.parse(result.text)
+        let snapshot = try Self.parse(result.output)
         logger.info("Codex TTY success: \(snapshot.quotas.count) quotas")
         return snapshot
     }
@@ -195,220 +249,5 @@ public struct CodexUsageProbe: UsageProbe {
 
         return nil
     }
-
-    internal func mapRunError(_ error: PTYCommandRunner.RunError) -> ProbeError {
-        switch error {
-        case .binaryNotFound(let bin):
-            .cliNotFound(bin)
-        case .timedOut:
-            .timeout
-        case .launchFailed(let msg):
-            .executionFailed(msg)
-        }
-    }
 }
 
-// MARK: - Codex RPC Client
-
-private final class CodexRPCClient: @unchecked Sendable {
-    private let process = Process()
-    private let stdinPipe = Pipe()
-    private let stdoutPipe = Pipe()
-    private var nextID = 1
-
-    init(executable: String, timeout: TimeInterval) throws {
-        // Build effective PATH including common Node.js installation locations
-        var env = ProcessInfo.processInfo.environment
-        let currentPath = env["PATH"] ?? ""
-        let additionalPaths = [
-            "/usr/local/bin",
-            "/opt/homebrew/bin",
-            "\(NSHomeDirectory())/.nvm/versions/node/*/bin",
-            "\(NSHomeDirectory())/.local/bin",
-            "/usr/local/lib/node_modules/.bin"
-        ]
-        env["PATH"] = (additionalPaths + [currentPath]).joined(separator: ":")
-
-        process.environment = env
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = [executable, "-s", "read-only", "-a", "untrusted", "app-server"]
-        process.standardInput = stdinPipe
-        process.standardOutput = stdoutPipe
-        process.standardError = FileHandle.nullDevice
-
-        do {
-            try process.run()
-        } catch {
-            throw ProbeError.executionFailed("Failed to start codex app-server: \(error.localizedDescription)")
-        }
-    }
-
-    func initialize() async throws {
-        _ = try await request(method: "initialize", params: [
-            "clientInfo": ["name": "claudebar", "version": "1.0.0"]
-        ])
-        try sendNotification(method: "initialized")
-    }
-
-    struct RateLimitsResponse {
-        let primary: RateLimitWindow?
-        let secondary: RateLimitWindow?
-        let planType: String?
-
-        init(primary: RateLimitWindow?, secondary: RateLimitWindow?, planType: String? = nil) {
-            self.primary = primary
-            self.secondary = secondary
-            self.planType = planType
-        }
-    }
-
-    struct RateLimitWindow {
-        let usedPercent: Double
-        let resetDescription: String?
-    }
-
-    func fetchRateLimits() async throws -> RateLimitsResponse {
-        let message = try await request(method: "account/rateLimits/read")
-
-        // Log raw response
-        if let data = try? JSONSerialization.data(withJSONObject: message, options: .prettyPrinted),
-           let jsonString = String(data: data, encoding: .utf8) {
-            logger.debug("Codex RPC raw response:\n\(jsonString)")
-        }
-
-        guard let result = message["result"] as? [String: Any] else {
-            logger.error("No result in response: \(String(describing: message))")
-            throw ProbeError.parseFailed("Invalid rate limits response")
-        }
-
-        guard let rateLimits = result["rateLimits"] as? [String: Any] else {
-            logger.error("No rateLimits in result: \(String(describing: result))")
-            throw ProbeError.parseFailed("No rateLimits in response")
-        }
-
-        let planType = rateLimits["planType"] as? String
-        logger.info("Codex plan type: \(planType ?? "unknown")")
-
-        let primary = parseWindow(rateLimits["primary"])
-        let secondary = parseWindow(rateLimits["secondary"])
-
-        // If plan is free and no limits, create default "unlimited" quotas
-        if primary == nil && secondary == nil {
-            if planType == "free" {
-                logger.info("Codex free plan - returning unlimited quotas")
-                return RateLimitsResponse(
-                    primary: RateLimitWindow(usedPercent: 0, resetDescription: "Free plan"),
-                    secondary: nil,
-                    planType: planType
-                )
-            }
-            // No rate limit data available yet
-            throw ProbeError.parseFailed("No rate limits available yet - make some API calls first")
-        }
-
-        return RateLimitsResponse(primary: primary, secondary: secondary, planType: planType)
-    }
-
-    private func parseWindow(_ value: Any?) -> RateLimitWindow? {
-        guard let dict = value as? [String: Any] else {
-            logger.debug("parseWindow: value is not a dict: \(String(describing: value))")
-            return nil
-        }
-
-        logger.debug("parseWindow dict keys: \(dict.keys.joined(separator: ", "))")
-
-        guard let usedPercent = dict["usedPercent"] as? Double else {
-            logger.debug("parseWindow: no usedPercent in dict")
-            return nil
-        }
-
-        var resetDescription: String?
-        if let resetsAt = dict["resetsAt"] as? Int {
-            let date = Date(timeIntervalSince1970: TimeInterval(resetsAt))
-            resetDescription = formatResetTime(date)
-        }
-
-        return RateLimitWindow(usedPercent: usedPercent, resetDescription: resetDescription)
-    }
-
-    private func formatResetTime(_ date: Date) -> String {
-        let interval = date.timeIntervalSinceNow
-        if interval <= 0 { return "Resets soon" }
-
-        let hours = Int(interval / 3600)
-        let minutes = Int((interval.truncatingRemainder(dividingBy: 3600)) / 60)
-
-        if hours > 0 {
-            return "Resets in \(hours)h \(minutes)m"
-        } else {
-            return "Resets in \(minutes)m"
-        }
-    }
-
-    func shutdown() {
-        if process.isRunning {
-            process.terminate()
-        }
-    }
-
-    // MARK: - JSON-RPC
-
-    private func request(method: String, params: [String: Any]? = nil) async throws -> [String: Any] {
-        let id = nextID
-        nextID += 1
-
-        try sendRequest(id: id, method: method, params: params)
-
-        while true {
-            let message = try await readNextMessage()
-
-            // Skip notifications
-            if message["id"] == nil {
-                continue
-            }
-
-            guard let messageID = message["id"] as? Int, messageID == id else {
-                continue
-            }
-
-            if let error = message["error"] as? [String: Any],
-               let errorMessage = error["message"] as? String {
-                throw ProbeError.executionFailed("RPC error: \(errorMessage)")
-            }
-
-            return message
-        }
-    }
-
-    private func sendNotification(method: String) throws {
-        let payload: [String: Any] = ["method": method, "params": [:]]
-        try sendPayload(payload)
-    }
-
-    private func sendRequest(id: Int, method: String, params: [String: Any]?) throws {
-        let payload: [String: Any] = [
-            "id": id,
-            "method": method,
-            "params": params ?? [:]
-        ]
-        try sendPayload(payload)
-    }
-
-    private func sendPayload(_ payload: [String: Any]) throws {
-        let data = try JSONSerialization.data(withJSONObject: payload)
-        stdinPipe.fileHandleForWriting.write(data)
-        stdinPipe.fileHandleForWriting.write(Data([0x0A])) // newline
-    }
-
-    private func readNextMessage() async throws -> [String: Any] {
-        for try await line in stdoutPipe.fileHandleForReading.bytes.lines {
-            guard !line.isEmpty,
-                  let data = line.data(using: .utf8),
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                continue
-            }
-            return json
-        }
-        throw ProbeError.executionFailed("Codex app-server closed unexpectedly")
-    }
-}

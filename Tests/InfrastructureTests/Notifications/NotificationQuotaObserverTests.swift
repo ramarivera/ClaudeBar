@@ -7,7 +7,7 @@ import Mockable
 /// Tests for NotificationQuotaObserver.
 /// Tests the helper methods that determine notification behavior.
 /// Note: Actual notification delivery cannot be tested without an app bundle.
-@Suite
+@Suite(.serialized)
 struct NotificationQuotaObserverTests {
 
     // MARK: - Should Notify Tests

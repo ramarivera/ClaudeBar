@@ -9,42 +9,47 @@ private let logger = Logger(subsystem: "com.claudebar", category: "ClaudeProbe")
 public struct ClaudeUsageProbe: UsageProbe {
     private let claudeBinary: String
     private let timeout: TimeInterval
+    private let cliExecutor: CLIExecutor
 
-    public init(claudeBinary: String = "claude", timeout: TimeInterval = 20.0) {
+    public init(
+        claudeBinary: String = "claude",
+        timeout: TimeInterval = 20.0,
+        cliExecutor: CLIExecutor? = nil
+    ) {
         self.claudeBinary = claudeBinary
         self.timeout = timeout
+        self.cliExecutor = cliExecutor ?? DefaultCLIExecutor()
     }
 
     public func isAvailable() async -> Bool {
-        PTYCommandRunner.which(claudeBinary) != nil
+        cliExecutor.locate(claudeBinary) != nil
     }
 
     public func probe() async throws -> UsageSnapshot {
         logger.info("Starting Claude probe...")
 
-        let runner = PTYCommandRunner()
-        let options = PTYCommandRunner.Options(
-            timeout: timeout,
-            workingDirectory: probeWorkingDirectory(),
-            extraArgs: ["/usage", "--allowed-tools", ""],
-            sendOnSubstrings: [
-                "Do you trust the files in this folder?": "y\r",
-                "Ready to code here?": "\r",
-                "Press Enter to continue": "\r",
-            ]
-        )
-
-        let result: PTYCommandRunner.Result
+        let result: CLIResult
         do {
-            result = try runner.run(binary: claudeBinary, send: "", options: options)
-        } catch let error as PTYCommandRunner.RunError {
+            result = try cliExecutor.execute(
+                binary: claudeBinary,
+                args: ["/usage", "--allowed-tools", ""],
+                input: "",
+                timeout: timeout,
+                workingDirectory: probeWorkingDirectory(),
+                sendOnSubstrings: [
+                    "Do you trust the files in this folder?": "y\r",
+                    "Ready to code here?": "\r",
+                    "Press Enter to continue": "\r",
+                ]
+            )
+        } catch {
             logger.error("Claude probe failed: \(error.localizedDescription)")
-            throw mapRunError(error)
+            throw ProbeError.executionFailed(error.localizedDescription)
         }
 
-        logger.debug("Claude raw output:\n\(result.text)")
+        logger.debug("Claude raw output:\n\(result.output)")
 
-        let snapshot = try parseClaudeOutput(result.text)
+        let snapshot = try parseClaudeOutput(result.output)
         logger.info("Claude probe success: \(snapshot.quotas.count) quotas found")
         for quota in snapshot.quotas {
             logger.info("  - \(quota.quotaType.displayName): \(Int(quota.percentRemaining))% remaining")
@@ -308,16 +313,5 @@ public struct ClaudeUsageProbe: UsageProbe {
             .appendingPathComponent("Probe", isDirectory: true)
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
-    }
-
-    internal func mapRunError(_ error: PTYCommandRunner.RunError) -> ProbeError {
-        switch error {
-        case .binaryNotFound(let bin):
-            .cliNotFound(bin)
-        case .timedOut:
-            .timeout
-        case .launchFailed(let msg):
-            .executionFailed(msg)
-        }
     }
 }

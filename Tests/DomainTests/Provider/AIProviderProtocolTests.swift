@@ -148,7 +148,7 @@ struct AIProviderProtocolTests {
     }
 }
 
-@Suite
+@Suite(.serialized)
 struct AIProviderRegistryTests {
 
     @Test
