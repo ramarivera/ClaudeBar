@@ -15,6 +15,9 @@ struct SettingsContentView: View {
     @State private var saveError: String?
     @State private var saveSuccess: Bool = false
 
+    // Budget input state
+    @State private var budgetInput: String = ""
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -26,6 +29,7 @@ struct SettingsContentView: View {
             // Scrollable Content
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 12) {
+                    claudeBudgetCard
                     copilotCard
                 }
                 .padding(.horizontal, 16)
@@ -36,6 +40,12 @@ struct SettingsContentView: View {
             footer
                 .padding(.horizontal, 16)
                 .padding(.bottom, 12)
+        }
+        .onAppear {
+            // Initialize budget input with current value
+            if settings.claudeApiBudget > 0 {
+                budgetInput = String(describing: settings.claudeApiBudget)
+            }
         }
     }
 
@@ -80,6 +90,133 @@ struct SettingsContentView: View {
             // Invisible placeholder to balance the header
             Color.clear
                 .frame(width: 60, height: 1)
+        }
+    }
+
+    // MARK: - Claude Budget Card
+
+    private var claudeBudgetCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header row with icon, title, toggle
+            claudeBudgetHeader
+
+            // Expandable content
+            if settings.claudeApiBudgetEnabled {
+                Divider()
+                    .background(AppTheme.glassBorder(for: colorScheme))
+                    .padding(.vertical, 12)
+
+                claudeBudgetForm
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(AppTheme.cardGradient(for: colorScheme))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    colorScheme == .dark ? Color.white.opacity(0.25) : AppTheme.purpleVibrant(for: colorScheme).opacity(0.18),
+                                    colorScheme == .dark ? Color.white.opacity(0.08) : AppTheme.pinkHot(for: colorScheme).opacity(0.08)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+        )
+    }
+
+    private var claudeBudgetHeader: some View {
+        HStack(spacing: 10) {
+            // Provider icon
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.85, green: 0.55, blue: 0.35),
+                                Color(red: 0.75, green: 0.40, blue: 0.30)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 32, height: 32)
+
+                Image(systemName: "dollarsign.circle.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Claude API Budget")
+                    .font(AppTheme.titleFont(size: 14))
+                    .foregroundStyle(AppTheme.textPrimary(for: colorScheme))
+
+                Text("Cost threshold warnings")
+                    .font(AppTheme.captionFont(size: 10))
+                    .foregroundStyle(AppTheme.textTertiary(for: colorScheme))
+            }
+
+            Spacer()
+
+            Toggle("", isOn: $settings.claudeApiBudgetEnabled)
+                .toggleStyle(.switch)
+                .tint(AppTheme.purpleVibrant(for: colorScheme))
+                .scaleEffect(0.8)
+                .labelsHidden()
+        }
+    }
+
+    private var claudeBudgetForm: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Budget Amount
+            VStack(alignment: .leading, spacing: 6) {
+                Text("MONTHLY BUDGET (USD)")
+                    .font(AppTheme.captionFont(size: 9))
+                    .foregroundStyle(AppTheme.textSecondary(for: colorScheme))
+                    .tracking(0.5)
+
+                HStack(spacing: 6) {
+                    Text("$")
+                        .font(AppTheme.bodyFont(size: 12))
+                        .foregroundStyle(AppTheme.textSecondary(for: colorScheme))
+
+                    TextField("", text: $budgetInput, prompt: Text("10.00").foregroundStyle(AppTheme.textTertiary(for: colorScheme)))
+                        .font(AppTheme.bodyFont(size: 12))
+                        .foregroundStyle(AppTheme.textPrimary(for: colorScheme))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.white.opacity(0.8))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(AppTheme.glassBorder(for: colorScheme), lineWidth: 1)
+                                )
+                        )
+                        .onChange(of: budgetInput) { _, newValue in
+                            if let value = Decimal(string: newValue) {
+                                settings.claudeApiBudget = value
+                            }
+                        }
+                }
+            }
+
+            // Help text
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Get warnings when approaching your budget threshold.")
+                    .font(AppTheme.captionFont(size: 9))
+                    .foregroundStyle(AppTheme.textTertiary(for: colorScheme))
+
+                Text("Only applies to Claude API accounts, not Claude Max.")
+                    .font(AppTheme.captionFont(size: 9))
+                    .foregroundStyle(AppTheme.textTertiary(for: colorScheme))
+            }
         }
     }
 

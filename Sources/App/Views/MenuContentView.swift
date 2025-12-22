@@ -12,6 +12,7 @@ struct MenuContentView: View {
     @State private var isHoveringRefresh = false
     @State private var animateIn = false
     @State private var showSettings = false
+    @State private var settings = AppSettings.shared
 
     /// The currently selected provider
     private var selectedProvider: (any AIProvider)? {
@@ -270,19 +271,28 @@ struct MenuContentView: View {
         .glassCard(cornerRadius: 12, padding: 10)
     }
 
+    @ViewBuilder
     private func statsGrid(snapshot: UsageSnapshot) -> some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: 10),
-                GridItem(.flexible(), spacing: 10)
-            ],
-            spacing: 10
-        ) {
-            ForEach(Array(snapshot.quotas.enumerated()), id: \.element.quotaType) { index, quota in
-                WrappedStatCard(quota: quota, delay: Double(index) * 0.08)
+        // For API accounts with cost data, show cost card
+        if let costUsage = snapshot.costUsage {
+            let budget = settings.claudeApiBudgetEnabled ? settings.claudeApiBudget : nil
+            CostStatCard(costUsage: costUsage, budget: budget, delay: 0)
+                .padding(.top, 4)
+        } else {
+            // For Max accounts, show quota grid
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10)
+                ],
+                spacing: 10
+            ) {
+                ForEach(Array(snapshot.quotas.enumerated()), id: \.element.quotaType) { index, quota in
+                    WrappedStatCard(quota: quota, delay: Double(index) * 0.08)
+                }
             }
+            .padding(.top, 4) // Room for hover scale effect
         }
-        .padding(.top, 4) // Room for hover scale effect
     }
 
     private var loadingState: some View {

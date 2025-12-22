@@ -28,9 +28,47 @@ public struct ClaudeUsageProbe: UsageProbe {
     public func probe() async throws -> UsageSnapshot {
         logger.info("Starting Claude probe...")
 
-        let result: CLIResult
+        // Step 1: Run /status to detect account type
+        let statusResult: CLIResult
         do {
-            result = try cliExecutor.execute(
+            statusResult = try cliExecutor.execute(
+                binary: claudeBinary,
+                args: ["/status", "--allowed-tools", ""],
+                input: "",
+                timeout: timeout,
+                workingDirectory: probeWorkingDirectory(),
+                sendOnSubstrings: [
+                    "Do you trust the files in this folder?": "y\r",
+                    "Ready to code here?": "\r",
+                    "Press Enter to continue": "\r",
+                ]
+            )
+        } catch {
+            logger.error("Claude /status probe failed: \(error.localizedDescription)")
+            throw ProbeError.executionFailed(error.localizedDescription)
+        }
+
+        logger.debug("Claude /status output:\n\(statusResult.output)")
+
+        let cleanStatus = stripANSICodes(statusResult.output)
+        let accountType = detectAccountType(cleanStatus)
+
+        // Step 2: Run appropriate command based on account type
+        if accountType == .api {
+            logger.info("Detected API account, running /cost command...")
+            return try await probeApiCost(statusOutput: cleanStatus)
+        }
+
+        // Step 3: For Max accounts, run /usage command
+        logger.info("Detected Max account, running /usage command...")
+        return try await probeMaxUsage(statusOutput: cleanStatus)
+    }
+
+    /// Probes usage information for Max accounts using /usage command
+    private func probeMaxUsage(statusOutput: String) async throws -> UsageSnapshot {
+        let usageResult: CLIResult
+        do {
+            usageResult = try cliExecutor.execute(
                 binary: claudeBinary,
                 args: ["/usage", "--allowed-tools", ""],
                 input: "",
@@ -43,13 +81,13 @@ public struct ClaudeUsageProbe: UsageProbe {
                 ]
             )
         } catch {
-            logger.error("Claude probe failed: \(error.localizedDescription)")
+            logger.error("Claude /usage probe failed: \(error.localizedDescription)")
             throw ProbeError.executionFailed(error.localizedDescription)
         }
 
-        logger.debug("Claude raw output:\n\(result.output)")
+        logger.debug("Claude /usage output:\n\(usageResult.output)")
 
-        let snapshot = try parseClaudeOutput(result.output)
+        let snapshot = try parseClaudeOutput(usageResult.output, statusOutput: statusOutput)
         logger.info("Claude probe success: \(snapshot.quotas.count) quotas found")
         for quota in snapshot.quotas {
             logger.info("  - \(quota.quotaType.displayName): \(Int(quota.percentRemaining))% remaining")
@@ -58,15 +96,45 @@ public struct ClaudeUsageProbe: UsageProbe {
         return snapshot
     }
 
-    // MARK: - Parsing
+    /// Probes cost information for API accounts using /cost command
+    private func probeApiCost(statusOutput: String) async throws -> UsageSnapshot {
+        let costResult: CLIResult
+        do {
+            costResult = try cliExecutor.execute(
+                binary: claudeBinary,
+                args: ["/cost", "--allowed-tools", ""],
+                input: "",
+                timeout: timeout,
+                workingDirectory: probeWorkingDirectory(),
+                sendOnSubstrings: [
+                    "Do you trust the files in this folder?": "y\r",
+                    "Ready to code here?": "\r",
+                    "Press Enter to continue": "\r",
+                ]
+            )
+        } catch {
+            logger.error("Claude /cost probe failed: \(error.localizedDescription)")
+            throw ProbeError.executionFailed(error.localizedDescription)
+        }
 
-    /// Parses Claude CLI output into a UsageSnapshot
-    public static func parse(_ text: String) throws -> UsageSnapshot {
-        try ClaudeUsageProbe().parseClaudeOutput(text)
+        logger.debug("Claude /cost raw output:\n\(costResult.output)")
+
+        let snapshot = try parseCostOutput(costResult.output, statusOutput: statusOutput)
+        logger.info("Claude API probe success: cost=\(snapshot.costUsage?.formattedCost ?? "N/A")")
+
+        return snapshot
     }
 
-    private func parseClaudeOutput(_ text: String) throws -> UsageSnapshot {
+    // MARK: - Parsing
+
+    /// Parses Claude CLI output into a UsageSnapshot (for testing)
+    public static func parse(_ text: String) throws -> UsageSnapshot {
+        try ClaudeUsageProbe().parseClaudeOutput(text, statusOutput: text)
+    }
+
+    private func parseClaudeOutput(_ text: String, statusOutput: String) throws -> UsageSnapshot {
         let clean = stripANSICodes(text)
+        let cleanStatus = stripANSICodes(statusOutput)
 
         // Check for errors first
         if let error = extractUsageError(clean) {
@@ -90,10 +158,10 @@ public struct ClaudeUsageProbe: UsageProbe {
         let sessionReset = extractReset(labelSubstring: "Current session", text: clean)
         let weeklyReset = extractReset(labelSubstring: "Current week", text: clean)
 
-        // Extract account info
-        let email = extractEmail(text: clean)
-        let org = extractOrganization(text: clean)
-        let loginMethod = extractLoginMethod(text: clean)
+        // Extract account info from /status output
+        let email = extractEmail(text: cleanStatus)
+        let org = extractOrganization(text: cleanStatus)
+        let loginMethod = extractLoginMethod(text: cleanStatus)
 
         // Build quotas
         var quotas: [UsageQuota] = []
@@ -132,8 +200,198 @@ public struct ClaudeUsageProbe: UsageProbe {
             capturedAt: Date(),
             accountEmail: email,
             accountOrganization: org,
-            loginMethod: loginMethod
+            loginMethod: loginMethod,
+            accountType: .max,
+            costUsage: nil
         )
+    }
+
+    // MARK: - Account Type Detection
+
+    /// Detects whether the account is a Max subscription or API account
+    /// based on the /usage command output.
+    internal func detectAccountType(_ text: String) -> ClaudeAccountType {
+        let lower = text.lowercased()
+        logger.debug("Detecting account type from output...")
+
+        // Check for explicit API Account indicator (exact match from CLI)
+        if lower.contains("login method: claude api account") ||
+           lower.contains("claude api account") {
+            logger.info("Detected Claude API Account from login method")
+            return .api
+        }
+
+        // Check for explicit Max Account indicator (exact match from CLI)
+        if lower.contains("login method: claude max account") ||
+           lower.contains("claude max account") {
+            logger.info("Detected Claude Max Account from login method")
+            return .max
+        }
+
+        // Legacy checks for older CLI versions
+        if lower.contains("login method: api") ||
+           lower.contains("login method:api") {
+            logger.info("Detected API account from legacy login method")
+            return .api
+        }
+
+        if lower.contains("login method: claude max") ||
+           lower.contains("login method:claude max") ||
+           lower.contains("max subscription") {
+            logger.info("Detected Max account from legacy login method")
+            return .max
+        }
+
+        // Check for presence of quota data (Max accounts have quotas)
+        let hasSessionQuota = lower.contains("current session") && (lower.contains("% left") || lower.contains("% used"))
+
+        if hasSessionQuota {
+            logger.info("Detected Max account from quota data presence")
+            return .max
+        }
+
+        // Check for API-specific messages
+        if lower.contains("no usage quotas") ||
+           lower.contains("use /cost to see") ||
+           lower.contains("api account") {
+            logger.info("Detected API account from API-specific messages")
+            return .api
+        }
+
+        // Default to Max if we can't determine
+        logger.warning("Could not determine account type, defaulting to Max")
+        return .max
+    }
+
+    // MARK: - Cost Parsing
+
+    /// Parses /cost command output into a UsageSnapshot with CostUsage
+    internal func parseCostOutput(_ costText: String, statusOutput: String) throws -> UsageSnapshot {
+        let clean = stripANSICodes(costText)
+        let cleanStatus = stripANSICodes(statusOutput)
+
+        // Extract cost data
+        guard let totalCost = extractTotalCost(clean) else {
+            throw ProbeError.parseFailed("Could not find total cost in /cost output")
+        }
+
+        let apiDuration = extractApiDuration(clean) ?? 0
+        let wallDuration = extractWallDuration(clean) ?? 0
+        let (linesAdded, linesRemoved) = extractCodeChanges(clean)
+
+        // Extract account info from /status output
+        let email = extractEmail(text: cleanStatus)
+        let org = extractOrganization(text: cleanStatus)
+        let loginMethod = extractLoginMethod(text: cleanStatus)
+
+        let costUsage = CostUsage(
+            totalCost: totalCost,
+            apiDuration: apiDuration,
+            wallDuration: wallDuration,
+            linesAdded: linesAdded,
+            linesRemoved: linesRemoved,
+            providerId: "claude",
+            capturedAt: Date()
+        )
+
+        return UsageSnapshot(
+            providerId: "claude",
+            quotas: [],
+            capturedAt: Date(),
+            accountEmail: email,
+            accountOrganization: org,
+            loginMethod: loginMethod,
+            accountType: .api,
+            costUsage: costUsage
+        )
+    }
+
+    /// Parses /cost command output for testing
+    public static func parseCost(_ costText: String, statusOutput: String = "") throws -> UsageSnapshot {
+        try ClaudeUsageProbe().parseCostOutput(costText, statusOutput: statusOutput)
+    }
+
+    /// Extracts total cost from /cost output (e.g., "Total cost: $0.55")
+    internal func extractTotalCost(_ text: String) -> Decimal? {
+        // Pattern: "Total cost: $0.55" or "Total cost: 0.55"
+        let pattern = #"(?i)total\s+cost:\s*\$?([\d,]+\.?\d*)"#
+        guard let match = extractFirst(pattern: pattern, text: text) else {
+            return nil
+        }
+
+        // Remove commas and parse
+        let cleaned = match.replacingOccurrences(of: ",", with: "")
+        return Decimal(string: cleaned)
+    }
+
+    /// Extracts API duration from /cost output (e.g., "Total duration (API): 6m 19.7s")
+    internal func extractApiDuration(_ text: String) -> TimeInterval? {
+        let pattern = #"(?i)total\s+duration\s*\(api\):\s*(.+)"#
+        guard let match = extractFirst(pattern: pattern, text: text) else {
+            return nil
+        }
+        return parseDurationString(match)
+    }
+
+    /// Extracts wall duration from /cost output (e.g., "Total duration (wall): 6h 33m 10.2s")
+    internal func extractWallDuration(_ text: String) -> TimeInterval? {
+        let pattern = #"(?i)total\s+duration\s*\(wall\):\s*(.+)"#
+        guard let match = extractFirst(pattern: pattern, text: text) else {
+            return nil
+        }
+        return parseDurationString(match)
+    }
+
+    /// Extracts code changes from /cost output (e.g., "Total code changes: 0 lines added, 0 lines removed")
+    internal func extractCodeChanges(_ text: String) -> (added: Int, removed: Int) {
+        let pattern = #"(?i)total\s+code\s+changes:\s*(\d+)\s*lines?\s+added[,\s]+(\d+)\s*lines?\s+removed"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return (0, 0)
+        }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        guard let match = regex.firstMatch(in: text, options: [], range: range),
+              match.numberOfRanges >= 3,
+              let addedRange = Range(match.range(at: 1), in: text),
+              let removedRange = Range(match.range(at: 2), in: text) else {
+            return (0, 0)
+        }
+
+        let added = Int(text[addedRange]) ?? 0
+        let removed = Int(text[removedRange]) ?? 0
+        return (added, removed)
+    }
+
+    /// Parses duration strings like "6m 19.7s" or "6h 33m 10.2s"
+    internal func parseDurationString(_ text: String) -> TimeInterval {
+        var totalSeconds: TimeInterval = 0
+
+        // Extract hours
+        if let hourMatch = text.range(of: #"(\d+)\s*h"#, options: .regularExpression) {
+            let hourStr = String(text[hourMatch])
+            if let hours = Double(hourStr.filter { $0.isNumber }) {
+                totalSeconds += hours * 3600
+            }
+        }
+
+        // Extract minutes
+        if let minMatch = text.range(of: #"(\d+)\s*m(?!s)"#, options: .regularExpression) {
+            let minStr = String(text[minMatch])
+            if let minutes = Double(minStr.filter { $0.isNumber }) {
+                totalSeconds += minutes * 60
+            }
+        }
+
+        // Extract seconds (including decimals)
+        let secPattern = #"([\d.]+)\s*s"#
+        if let regex = try? NSRegularExpression(pattern: secPattern, options: []),
+           let match = regex.firstMatch(in: text, options: [], range: NSRange(text.startIndex..<text.endIndex, in: text)),
+           match.numberOfRanges >= 2,
+           let secRange = Range(match.range(at: 1), in: text),
+           let seconds = Double(text[secRange]) {
+            totalSeconds += seconds
+        }
+
+        return totalSeconds
     }
 
     // MARK: - Text Parsing Helpers

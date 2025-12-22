@@ -6,7 +6,7 @@ public struct UsageSnapshot: Sendable, Equatable {
     /// The provider ID this snapshot belongs to (e.g., "claude", "codex", "gemini")
     public let providerId: String
 
-    /// All quotas captured in this snapshot
+    /// All quotas captured in this snapshot (empty for API accounts)
     public let quotas: [UsageQuota]
 
     /// When this snapshot was captured
@@ -17,6 +17,12 @@ public struct UsageSnapshot: Sendable, Equatable {
     public let accountOrganization: String?
     public let loginMethod: String?
 
+    /// The type of Claude account (nil for non-Claude providers)
+    public let accountType: ClaudeAccountType?
+
+    /// Cost-based usage data (for Claude API accounts)
+    public let costUsage: CostUsage?
+
     // MARK: - Initialization
 
     public init(
@@ -25,7 +31,9 @@ public struct UsageSnapshot: Sendable, Equatable {
         capturedAt: Date,
         accountEmail: String? = nil,
         accountOrganization: String? = nil,
-        loginMethod: String? = nil
+        loginMethod: String? = nil,
+        accountType: ClaudeAccountType? = nil,
+        costUsage: CostUsage? = nil
     ) {
         self.providerId = providerId
         self.quotas = quotas
@@ -33,6 +41,8 @@ public struct UsageSnapshot: Sendable, Equatable {
         self.accountEmail = accountEmail
         self.accountOrganization = accountOrganization
         self.loginMethod = loginMethod
+        self.accountType = accountType
+        self.costUsage = costUsage
     }
 
     // MARK: - Domain Queries

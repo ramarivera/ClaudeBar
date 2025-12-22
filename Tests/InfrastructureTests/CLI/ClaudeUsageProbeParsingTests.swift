@@ -246,6 +246,248 @@ struct ClaudeUsageProbeParsingTests {
         #expect(snapshot.sessionQuota?.percentRemaining == 65)
     }
 
+    // MARK: - Account Type Detection
+
+    static let apiAccountOutput = """
+    Version: 2.0.75
+    Session ID: d248f0a1-f805-4272-9ff8-757dd7c3b83d
+    cwd: /github/tddworks/claudebar
+    Login method: Claude API Account
+    Organization: User's Organization
+    Email: user@example.com
+    """
+
+    static let maxAccountOutput = """
+    Version: 2.0.75
+    Session ID: d248f0a1-f805-4272-9ff8-757dd7c3b83d
+    cwd: /github/tddworks/claudebar
+    Login method: Claude Max Account
+    Organization: User's Organization
+    Email: user@example.com
+
+    Current session
+    ████████████████░░░░ 65% left
+    Resets in 2h 15m
+    """
+
+    @Test
+    func `detects API account type from login method`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+
+        // When
+        let accountType = probe.detectAccountType(Self.apiAccountOutput)
+
+        // Then
+        #expect(accountType == .api)
+    }
+
+    @Test
+    func `detects Max account type from login method`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+
+        // When
+        let accountType = probe.detectAccountType(Self.maxAccountOutput)
+
+        // Then
+        #expect(accountType == .max)
+    }
+
+    @Test
+    func `detects Max account type from percentage data`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+        let output = "Current session\n75% left"
+
+        // When
+        let accountType = probe.detectAccountType(output)
+
+        // Then
+        #expect(accountType == .max)
+    }
+
+    @Test
+    func `detects API account type from no usage quotas message`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+        let output = "No usage quotas for API accounts."
+
+        // When
+        let accountType = probe.detectAccountType(output)
+
+        // Then
+        #expect(accountType == .api)
+    }
+
+    // MARK: - Cost Parsing
+
+    static let sampleCostOutput = """
+    Total cost:            $0.55
+    Total duration (API):  6m 19.7s
+    Total duration (wall): 6h 33m 10.2s
+    Total code changes:    0 lines added, 0 lines removed
+    """
+
+    static let largeCostOutput = """
+    Total cost: $125.50
+    Total duration (API): 2h 15m 30.5s
+    Total duration (wall): 48h 0m 0.0s
+    Total code changes: 1500 lines added, 250 lines removed
+    """
+
+    @Test
+    func `parses total cost from cost output`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+
+        // When
+        let cost = probe.extractTotalCost(Self.sampleCostOutput)
+
+        // Then
+        #expect(cost == Decimal(string: "0.55"))
+    }
+
+    @Test
+    func `parses large cost value`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+
+        // When
+        let cost = probe.extractTotalCost(Self.largeCostOutput)
+
+        // Then
+        #expect(cost == Decimal(string: "125.50"))
+    }
+
+    @Test
+    func `parses API duration from cost output`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+
+        // When
+        let duration = probe.extractApiDuration(Self.sampleCostOutput)
+
+        // Then
+        // 6m 19.7s = 379.7 seconds
+        #expect(duration != nil)
+        #expect(abs(duration! - 379.7) < 0.1)
+    }
+
+    @Test
+    func `parses wall duration from cost output`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+
+        // When
+        let duration = probe.extractWallDuration(Self.sampleCostOutput)
+
+        // Then
+        // 6h 33m 10.2s = 23590.2 seconds
+        #expect(duration != nil)
+        #expect(abs(duration! - 23590.2) < 0.1)
+    }
+
+    @Test
+    func `parses code changes from cost output`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+
+        // When
+        let changes = probe.extractCodeChanges(Self.largeCostOutput)
+
+        // Then
+        #expect(changes.added == 1500)
+        #expect(changes.removed == 250)
+    }
+
+    @Test
+    func `parses zero code changes`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+
+        // When
+        let changes = probe.extractCodeChanges(Self.sampleCostOutput)
+
+        // Then
+        #expect(changes.added == 0)
+        #expect(changes.removed == 0)
+    }
+
+    @Test
+    func `parseCost returns snapshot with cost usage`() throws {
+        // Given
+        let costOutput = Self.sampleCostOutput
+        let statusOutput = "Email: test@example.com\nLogin method: Claude API Account"
+
+        // When
+        let snapshot = try ClaudeUsageProbe.parseCost(costOutput, statusOutput: statusOutput)
+
+        // Then
+        #expect(snapshot.accountType == .api)
+        #expect(snapshot.costUsage != nil)
+        #expect(snapshot.costUsage?.totalCost == Decimal(string: "0.55"))
+        #expect(snapshot.quotas.isEmpty)
+        #expect(snapshot.accountEmail == "test@example.com")
+    }
+
+    @Test
+    func `parseCost extracts all fields correctly`() throws {
+        // Given
+        let costOutput = Self.largeCostOutput
+        let statusOutput = ""
+
+        // When
+        let snapshot = try ClaudeUsageProbe.parseCost(costOutput, statusOutput: statusOutput)
+
+        // Then
+        let cost = snapshot.costUsage!
+        #expect(cost.totalCost == Decimal(string: "125.50"))
+        #expect(cost.linesAdded == 1500)
+        #expect(cost.linesRemoved == 250)
+        #expect(abs(cost.apiDuration - 8130.5) < 0.1) // 2h 15m 30.5s
+    }
+
+    // MARK: - Duration String Parsing
+
+    @Test
+    func `parses duration with hours minutes seconds`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+
+        // When
+        let duration = probe.parseDurationString("2h 15m 30.5s")
+
+        // Then
+        // 2*3600 + 15*60 + 30.5 = 8130.5
+        #expect(abs(duration - 8130.5) < 0.1)
+    }
+
+    @Test
+    func `parses duration with minutes and seconds only`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+
+        // When
+        let duration = probe.parseDurationString("6m 19.7s")
+
+        // Then
+        // 6*60 + 19.7 = 379.7
+        #expect(abs(duration - 379.7) < 0.1)
+    }
+
+    @Test
+    func `parses duration with seconds only`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+
+        // When
+        let duration = probe.parseDurationString("45.2s")
+
+        // Then
+        #expect(abs(duration - 45.2) < 0.1)
+    }
+
     // MARK: - Helper
 
     private func simulateParse(text: String) throws -> UsageSnapshot {
