@@ -44,7 +44,6 @@ struct NotificationQuotaObserverTests {
 
     @Test
     func `providerDisplayName uses registry for registered provider`() {
-        AIProviderRegistry.shared.reset()
         // Given - register providers using Mockable
         let mockProbe = MockUsageProbe()
         AIProviderRegistry.shared.register([
@@ -62,9 +61,7 @@ struct NotificationQuotaObserverTests {
 
     @Test
     func `providerDisplayName capitalizes unknown provider id`() {
-        AIProviderRegistry.shared.reset()
-        // Given - empty registry
-        AIProviderRegistry.shared.register([])
+        // Given - unknown provider IDs (not in registry)
         let observer = NotificationQuotaObserver()
 
         // Then - capitalizes the ID
