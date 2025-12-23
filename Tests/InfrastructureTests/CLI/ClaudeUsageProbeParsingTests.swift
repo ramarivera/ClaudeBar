@@ -246,54 +246,52 @@ struct ClaudeUsageProbeParsingTests {
         #expect(snapshot.sessionQuota?.percentRemaining == 65)
     }
 
-    // MARK: - Account Type Detection
+    // MARK: - Account Type Detection from Header
 
-    // /status output for API account (no quota data)
-    static let apiAccountOutput = """
-    Version: 2.0.75
-    Session ID: d248f0a1-f805-4272-9ff8-757dd7c3b83d
-    cwd: /github/tddworks/claudebar
-    Login method: Claude API Account
-    Organization: User's Organization
-    Email: user@example.com
+    // /usage header for Max account
+    static let maxHeaderOutput = """
+    Opus 4.5 · Claude Max · user@example.com's Organization
+
+    Current session
+    ████████████████░░░░ 65% left
+    Resets in 2h 15m
     """
 
-    // /status output for Max account (no quota data)
-    static let maxAccountOutput = """
-    Version: 2.0.75
-    Session ID: d248f0a1-f805-4272-9ff8-757dd7c3b83d
-    cwd: /github/tddworks/claudebar
-    Login method: Claude Max Account
-    Organization: User's Organization
-    Email: user@example.com
+    // /usage header for Pro account
+    static let proHeaderOutput = """
+    Opus 4.5 · Claude Pro · Organization
+
+    Current session
+    █████░░░░░░░░░░░░░░░ 1% used
+    Resets 4:59pm (America/New_York)
     """
 
     @Test
-    func `detects API account type from login method`() throws {
+    func `detects Max account type from header`() throws {
         // Given
         let probe = ClaudeUsageProbe()
 
         // When
-        let accountType = probe.detectAccountType(Self.apiAccountOutput)
-
-        // Then
-        #expect(accountType == .api)
-    }
-
-    @Test
-    func `detects Max account type from login method`() throws {
-        // Given
-        let probe = ClaudeUsageProbe()
-
-        // When
-        let accountType = probe.detectAccountType(Self.maxAccountOutput)
+        let accountType = probe.detectAccountType(Self.maxHeaderOutput)
 
         // Then
         #expect(accountType == .max)
     }
 
     @Test
-    func `detects Max account type from percentage data`() throws {
+    func `detects Pro account type from header`() throws {
+        // Given
+        let probe = ClaudeUsageProbe()
+
+        // When
+        let accountType = probe.detectAccountType(Self.proHeaderOutput)
+
+        // Then
+        #expect(accountType == .pro)
+    }
+
+    @Test
+    func `detects Max account type from percentage data when no header`() throws {
         // Given
         let probe = ClaudeUsageProbe()
         let output = "Current session\n75% left"
@@ -306,184 +304,134 @@ struct ClaudeUsageProbeParsingTests {
     }
 
     @Test
-    func `detects API account type from no usage quotas message`() throws {
+    func `defaults to Max when no header but has quota data`() throws {
         // Given
         let probe = ClaudeUsageProbe()
-        let output = "No usage quotas for API accounts."
+        let output = """
+        Current session
+        75% left
+
+        Extra usage
+        $5.00 / $20.00 spent
+        """
 
         // When
         let accountType = probe.detectAccountType(output)
 
-        // Then
-        #expect(accountType == .api)
+        // Then - Both Max and Pro can have Extra usage, defaults to Max without header
+        #expect(accountType == .max)
     }
 
-    // MARK: - Cost Parsing
+    // MARK: - Extra Usage Parsing
 
-    static let sampleCostOutput = """
-    Total cost:            $0.55
-    Total duration (API):  6m 19.7s
-    Total duration (wall): 6h 33m 10.2s
-    Total code changes:    0 lines added, 0 lines removed
+    static let proWithExtraUsageOutput = """
+    Opus 4.5 · Claude Pro · Organization
+
+    Current session
+    █████░░░░░░░░░░░░░░░ 1% used
+    Resets 4:59pm (America/New_York)
+
+    Current week (all models)
+    █████████████████░░░ 36% used
+    Resets Dec 25 at 2:59pm (America/New_York)
+
+    Extra usage
+    █████░░░░░░░░░░░░░░░ 27% used
+    $5.41 / $20.00 spent · Resets Jan 1, 2026 (America/New_York)
     """
 
-    static let largeCostOutput = """
-    Total cost: $125.50
-    Total duration (API): 2h 15m 30.5s
-    Total duration (wall): 48h 0m 0.0s
-    Total code changes: 1500 lines added, 250 lines removed
+    static let maxWithExtraUsageNotEnabled = """
+    Opus 4.5 · Claude Max · Organization
+
+    Current session
+    ████████████████░░░░ 82% used
+    Resets 3pm (Asia/Shanghai)
+
+    Extra usage
+    Extra usage not enabled · /extra-usage to enable
     """
 
     @Test
-    func `parses total cost from cost output`() throws {
+    func `parses Extra usage cost for Pro account`() throws {
         // Given
         let probe = ClaudeUsageProbe()
 
         // When
-        let cost = probe.extractTotalCost(Self.sampleCostOutput)
+        let costUsage = probe.extractExtraUsage(Self.proWithExtraUsageOutput)
 
         // Then
-        #expect(cost == Decimal(string: "0.55"))
+        #expect(costUsage != nil)
+        #expect(costUsage?.totalCost == Decimal(string: "5.41"))
+        #expect(costUsage?.budget == Decimal(string: "20.00"))
     }
 
     @Test
-    func `parses large cost value`() throws {
+    func `parses Extra usage cost line`() throws {
         // Given
         let probe = ClaudeUsageProbe()
 
         // When
-        let cost = probe.extractTotalCost(Self.largeCostOutput)
+        let result = probe.parseExtraUsageCostLine("$5.41 / $20.00 spent · Resets Jan 1, 2026")
 
         // Then
-        #expect(cost == Decimal(string: "125.50"))
+        #expect(result != nil)
+        #expect(result?.spent == Decimal(string: "5.41"))
+        #expect(result?.budget == Decimal(string: "20.00"))
     }
 
     @Test
-    func `parses API duration from cost output`() throws {
+    func `parses Extra usage cost line without dollar signs`() throws {
         // Given
         let probe = ClaudeUsageProbe()
 
         // When
-        let duration = probe.extractApiDuration(Self.sampleCostOutput)
+        let result = probe.parseExtraUsageCostLine("5.41 / 20.00 spent")
 
         // Then
-        // 6m 19.7s = 379.7 seconds
-        #expect(duration != nil)
-        #expect(abs(duration! - 379.7) < 0.1)
+        #expect(result != nil)
+        #expect(result?.spent == Decimal(string: "5.41"))
+        #expect(result?.budget == Decimal(string: "20.00"))
     }
 
     @Test
-    func `parses wall duration from cost output`() throws {
+    func `returns nil for Extra usage not enabled`() throws {
         // Given
         let probe = ClaudeUsageProbe()
 
         // When
-        let duration = probe.extractWallDuration(Self.sampleCostOutput)
+        let costUsage = probe.extractExtraUsage(Self.maxWithExtraUsageNotEnabled)
 
         // Then
-        // 6h 33m 10.2s = 23590.2 seconds
-        #expect(duration != nil)
-        #expect(abs(duration! - 23590.2) < 0.1)
+        #expect(costUsage == nil)
     }
 
     @Test
-    func `parses code changes from cost output`() throws {
+    func `returns nil when no Extra usage section`() throws {
         // Given
         let probe = ClaudeUsageProbe()
+        let output = """
+        Current session
+        65% left
+        """
 
         // When
-        let changes = probe.extractCodeChanges(Self.largeCostOutput)
+        let costUsage = probe.extractExtraUsage(output)
 
         // Then
-        #expect(changes.added == 1500)
-        #expect(changes.removed == 250)
+        #expect(costUsage == nil)
     }
 
     @Test
-    func `parses zero code changes`() throws {
-        // Given
-        let probe = ClaudeUsageProbe()
-
+    func `parse returns snapshot with Extra usage for Pro account`() throws {
         // When
-        let changes = probe.extractCodeChanges(Self.sampleCostOutput)
+        let snapshot = try ClaudeUsageProbe.parse(Self.proWithExtraUsageOutput)
 
         // Then
-        #expect(changes.added == 0)
-        #expect(changes.removed == 0)
-    }
-
-    @Test
-    func `parseCost returns snapshot with cost usage`() throws {
-        // Given
-        let costOutput = Self.sampleCostOutput
-        let statusOutput = "Email: test@example.com\nLogin method: Claude API Account"
-
-        // When
-        let snapshot = try ClaudeUsageProbe.parseCost(costOutput, statusOutput: statusOutput)
-
-        // Then
-        #expect(snapshot.accountType == .api)
+        #expect(snapshot.accountType == .pro)
         #expect(snapshot.costUsage != nil)
-        #expect(snapshot.costUsage?.totalCost == Decimal(string: "0.55"))
-        #expect(snapshot.quotas.isEmpty)
-        #expect(snapshot.accountEmail == "test@example.com")
-    }
-
-    @Test
-    func `parseCost extracts all fields correctly`() throws {
-        // Given
-        let costOutput = Self.largeCostOutput
-        let statusOutput = ""
-
-        // When
-        let snapshot = try ClaudeUsageProbe.parseCost(costOutput, statusOutput: statusOutput)
-
-        // Then
-        let cost = snapshot.costUsage!
-        #expect(cost.totalCost == Decimal(string: "125.50"))
-        #expect(cost.linesAdded == 1500)
-        #expect(cost.linesRemoved == 250)
-        #expect(abs(cost.apiDuration - 8130.5) < 0.1) // 2h 15m 30.5s
-    }
-
-    // MARK: - Duration String Parsing
-
-    @Test
-    func `parses duration with hours minutes seconds`() throws {
-        // Given
-        let probe = ClaudeUsageProbe()
-
-        // When
-        let duration = probe.parseDurationString("2h 15m 30.5s")
-
-        // Then
-        // 2*3600 + 15*60 + 30.5 = 8130.5
-        #expect(abs(duration - 8130.5) < 0.1)
-    }
-
-    @Test
-    func `parses duration with minutes and seconds only`() throws {
-        // Given
-        let probe = ClaudeUsageProbe()
-
-        // When
-        let duration = probe.parseDurationString("6m 19.7s")
-
-        // Then
-        // 6*60 + 19.7 = 379.7
-        #expect(abs(duration - 379.7) < 0.1)
-    }
-
-    @Test
-    func `parses duration with seconds only`() throws {
-        // Given
-        let probe = ClaudeUsageProbe()
-
-        // When
-        let duration = probe.parseDurationString("45.2s")
-
-        // Then
-        #expect(abs(duration - 45.2) < 0.1)
+        #expect(snapshot.costUsage?.totalCost == Decimal(string: "5.41"))
+        #expect(snapshot.costUsage?.budget == Decimal(string: "20.00"))
+        #expect(snapshot.quotas.count >= 1)
     }
 
     // MARK: - Helper

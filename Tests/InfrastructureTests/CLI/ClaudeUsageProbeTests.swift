@@ -108,40 +108,25 @@ struct ClaudeUsageProbeTests {
         #expect(FileManager.default.fileExists(atPath: url.path))
     }
 
-    // MARK: - Caching Tests
+    // MARK: - Probe Tests
 
     @Test
-    func `probe caches account info and skips status on second call`() async throws {
+    func `probe extracts account type from usage output`() async throws {
         // Given
         let mockExecutor = MockCLIExecutor()
 
-        // First call: /status returns Max account
-        let statusOutput = """
-        Version: 2.0.75
-        Login method: Claude Max Account
-        Email: user@example.com
-        """
-
-        // /usage returns quota data
+        // /usage returns Max account with quota data
         let usageOutput = """
+        Opus 4.5 · Claude Max · user@example.com's Organization
+
         Current session
         ████████████████░░░░ 65% left
         Resets in 2h 15m
-        """
 
-        // Setup mock to track call count
-        var statusCallCount = 0
-        given(mockExecutor).execute(
-            binary: .any,
-            args: .matching { $0.first == "/status" },
-            input: .any,
-            timeout: .any,
-            workingDirectory: .any,
-            sendOnSubstrings: .any
-        ).willProduce { _, _, _, _, _, _ in
-            statusCallCount += 1
-            return CLIResult(output: statusOutput, exitCode: 0)
-        }
+        Current week (all models)
+        ██████████░░░░░░░░░░ 35% left
+        Resets Dec 28
+        """
 
         given(mockExecutor).execute(
             binary: .any,
@@ -151,102 +136,6 @@ struct ClaudeUsageProbeTests {
             workingDirectory: .any,
             sendOnSubstrings: .any
         ).willReturn(CLIResult(output: usageOutput, exitCode: 0))
-
-        let probe = ClaudeUsageProbe(cliExecutor: mockExecutor)
-
-        // When - call probe twice
-        _ = try await probe.probe()
-        _ = try await probe.probe()
-
-        // Then - /status should only be called once (cached)
-        #expect(statusCallCount == 1)
-    }
-
-    @Test
-    func `clearCache causes status to be called again`() async throws {
-        // Given
-        let mockExecutor = MockCLIExecutor()
-
-        let statusOutput = """
-        Version: 2.0.75
-        Login method: Claude Max Account
-        Email: user@example.com
-        """
-
-        let usageOutput = """
-        Current session
-        ████████████████░░░░ 65% left
-        Resets in 2h 15m
-        """
-
-        var statusCallCount = 0
-        given(mockExecutor).execute(
-            binary: .any,
-            args: .matching { $0.first == "/status" },
-            input: .any,
-            timeout: .any,
-            workingDirectory: .any,
-            sendOnSubstrings: .any
-        ).willProduce { _, _, _, _, _, _ in
-            statusCallCount += 1
-            return CLIResult(output: statusOutput, exitCode: 0)
-        }
-
-        given(mockExecutor).execute(
-            binary: .any,
-            args: .matching { $0.first == "/usage" },
-            input: .any,
-            timeout: .any,
-            workingDirectory: .any,
-            sendOnSubstrings: .any
-        ).willReturn(CLIResult(output: usageOutput, exitCode: 0))
-
-        let probe = ClaudeUsageProbe(cliExecutor: mockExecutor)
-
-        // When - call probe, clear cache, call probe again
-        _ = try await probe.probe()
-        probe.clearCache()
-        _ = try await probe.probe()
-
-        // Then - /status should be called twice
-        #expect(statusCallCount == 2)
-    }
-
-    @Test
-    func `probe calls cost command for API account`() async throws {
-        // Given
-        let mockExecutor = MockCLIExecutor()
-
-        let statusOutput = """
-        Version: 2.0.75
-        Login method: Claude API Account
-        Email: user@example.com
-        """
-
-        let costOutput = """
-        Total cost: $1.25
-        Total duration (API): 10m 30.5s
-        Total duration (wall): 1h 15m 0.0s
-        Total code changes: 50 lines added, 10 lines removed
-        """
-
-        given(mockExecutor).execute(
-            binary: .any,
-            args: .matching { $0.first == "/status" },
-            input: .any,
-            timeout: .any,
-            workingDirectory: .any,
-            sendOnSubstrings: .any
-        ).willReturn(CLIResult(output: statusOutput, exitCode: 0))
-
-        given(mockExecutor).execute(
-            binary: .any,
-            args: .matching { $0.first == "/cost" },
-            input: .any,
-            timeout: .any,
-            workingDirectory: .any,
-            sendOnSubstrings: .any
-        ).willReturn(CLIResult(output: costOutput, exitCode: 0))
 
         let probe = ClaudeUsageProbe(cliExecutor: mockExecutor)
 
@@ -254,9 +143,50 @@ struct ClaudeUsageProbeTests {
         let snapshot = try await probe.probe()
 
         // Then
-        #expect(snapshot.accountType == .api)
+        #expect(snapshot.accountType == .max)
+        #expect(snapshot.quotas.count >= 1)
+    }
+
+    @Test
+    func `probe extracts Pro account with Extra usage`() async throws {
+        // Given
+        let mockExecutor = MockCLIExecutor()
+
+        let usageOutput = """
+        Opus 4.5 · Claude Pro · Organization
+
+        Current session
+        █████░░░░░░░░░░░░░░░ 1% used
+        Resets 4:59pm (America/New_York)
+
+        Current week (all models)
+        █████████████████░░░ 36% used
+        Resets Dec 25 at 2:59pm (America/New_York)
+
+        Extra usage
+        █████░░░░░░░░░░░░░░░ 27% used
+        $5.41 / $20.00 spent · Resets Jan 1, 2026 (America/New_York)
+        """
+
+        given(mockExecutor).execute(
+            binary: .any,
+            args: .matching { $0.first == "/usage" },
+            input: .any,
+            timeout: .any,
+            workingDirectory: .any,
+            sendOnSubstrings: .any
+        ).willReturn(CLIResult(output: usageOutput, exitCode: 0))
+
+        let probe = ClaudeUsageProbe(cliExecutor: mockExecutor)
+
+        // When
+        let snapshot = try await probe.probe()
+
+        // Then
+        #expect(snapshot.accountType == .pro)
         #expect(snapshot.costUsage != nil)
-        #expect(snapshot.costUsage?.totalCost == Decimal(string: "1.25"))
-        #expect(snapshot.quotas.isEmpty)
+        #expect(snapshot.costUsage?.totalCost == Decimal(string: "5.41"))
+        #expect(snapshot.costUsage?.budget == Decimal(string: "20.00"))
+        #expect(snapshot.quotas.count >= 1)
     }
 }

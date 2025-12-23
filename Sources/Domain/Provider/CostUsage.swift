@@ -1,10 +1,14 @@
 import Foundation
 
-/// Represents cost-based usage data for Claude API accounts.
-/// This is distinct from UsageQuota which tracks percentage-based quotas.
+/// Represents cost-based usage data for Claude accounts.
+/// Used for API accounts (pay-per-use) and Pro accounts with Extra usage enabled.
 public struct CostUsage: Sendable, Equatable, Hashable {
-    /// The total cost in dollars
+    /// The total cost/spent amount in dollars
     public let totalCost: Decimal
+
+    /// The budget limit (for Pro accounts with Extra usage, e.g., $20.00)
+    /// nil for API accounts that don't have a fixed budget
+    public let budget: Decimal?
 
     /// Total time spent on API calls
     public let apiDuration: TimeInterval
@@ -24,24 +28,36 @@ public struct CostUsage: Sendable, Equatable, Hashable {
     /// When this usage data was captured
     public let capturedAt: Date
 
+    /// When this cost usage resets (for Pro Extra usage)
+    public let resetsAt: Date?
+
+    /// Human-readable reset text (e.g., "Resets Jan 1, 2026")
+    public let resetText: String?
+
     // MARK: - Initialization
 
     public init(
         totalCost: Decimal,
+        budget: Decimal? = nil,
         apiDuration: TimeInterval,
         wallDuration: TimeInterval = 0,
         linesAdded: Int = 0,
         linesRemoved: Int = 0,
         providerId: String,
-        capturedAt: Date = Date()
+        capturedAt: Date = Date(),
+        resetsAt: Date? = nil,
+        resetText: String? = nil
     ) {
         self.totalCost = totalCost
+        self.budget = budget
         self.apiDuration = apiDuration
         self.wallDuration = wallDuration
         self.linesAdded = linesAdded
         self.linesRemoved = linesRemoved
         self.providerId = providerId
         self.capturedAt = capturedAt
+        self.resetsAt = resetsAt
+        self.resetText = resetText
     }
 
     // MARK: - Formatting
@@ -78,11 +94,34 @@ public struct CostUsage: Sendable, Equatable, Hashable {
         BudgetStatus.from(cost: totalCost, budget: budget)
     }
 
+    /// Calculates budget status using the built-in budget (for Pro Extra usage)
+    public var budgetStatusFromBuiltIn: BudgetStatus? {
+        guard let budget else { return nil }
+        return BudgetStatus.from(cost: totalCost, budget: budget)
+    }
+
     /// Calculates the percentage of budget used
     public func budgetPercentUsed(budget: Decimal) -> Double {
         guard budget > 0 else { return 0 }
         let percentage = (totalCost / budget) * 100
         return Double(truncating: percentage as NSDecimalNumber)
+    }
+
+    /// Calculates percentage used from built-in budget (for Pro Extra usage)
+    public var budgetPercentUsedFromBuiltIn: Double? {
+        guard let budget else { return nil }
+        return budgetPercentUsed(budget: budget)
+    }
+
+    /// Formatted budget string (e.g., "$20.00")
+    public var formattedBudget: String? {
+        guard let budget else { return nil }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = "USD"
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: budget as NSDecimalNumber) ?? "$\(budget)"
     }
 
     // MARK: - Private Helpers

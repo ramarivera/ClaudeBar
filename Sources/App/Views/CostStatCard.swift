@@ -1,11 +1,11 @@
 import SwiftUI
 import Domain
 
-/// A card that displays cost-based usage data for Claude API accounts.
-/// Shows total cost, API duration, and optional budget progress.
+/// A card that displays cost-based usage data for Claude accounts.
+/// Shows total cost, optional budget progress, and reset time for Pro Extra usage.
 struct CostStatCard: View {
     let costUsage: CostUsage
-    let budget: Decimal?
+    let externalBudget: Decimal?
     let delay: Double
 
     @Environment(\.colorScheme) private var colorScheme
@@ -14,17 +14,23 @@ struct CostStatCard: View {
 
     init(costUsage: CostUsage, budget: Decimal? = nil, delay: Double = 0) {
         self.costUsage = costUsage
-        self.budget = budget
+        self.externalBudget = budget
         self.delay = delay
     }
 
+    /// The effective budget - prefer built-in budget from CostUsage (Pro Extra usage),
+    /// fall back to external budget (API account settings)
+    private var effectiveBudget: Decimal? {
+        costUsage.budget ?? externalBudget
+    }
+
     private var budgetStatus: BudgetStatus? {
-        guard let budget, budget > 0 else { return nil }
+        guard let budget = effectiveBudget, budget > 0 else { return nil }
         return costUsage.budgetStatus(budget: budget)
     }
 
     private var budgetPercentUsed: Double {
-        guard let budget, budget > 0 else { return 0 }
+        guard let budget = effectiveBudget, budget > 0 else { return 0 }
         return min(100, costUsage.budgetPercentUsed(budget: budget))
     }
 
@@ -62,20 +68,32 @@ struct CostStatCard: View {
             }
 
             // Budget progress bar (if budget is set)
-            if budget != nil && budget! > 0 {
-                budgetProgressBar
+            if let budget = effectiveBudget, budget > 0 {
+                budgetProgressBar(budget: budget)
             }
 
-            // API Duration
-            HStack(spacing: 3) {
-                Image(systemName: "clock.fill")
-                    .font(.system(size: 7))
+            // Show API Duration if > 0, or reset time for Pro Extra usage
+            if costUsage.apiDuration > 0 {
+                HStack(spacing: 3) {
+                    Image(systemName: "clock.fill")
+                        .font(.system(size: 7))
 
-                Text("API Time: \(costUsage.formattedApiDuration)")
-                    .font(AppTheme.captionFont(size: 9))
+                    Text("API Time: \(costUsage.formattedApiDuration)")
+                        .font(AppTheme.captionFont(size: 9))
+                }
+                .foregroundStyle(AppTheme.textTertiary(for: colorScheme))
+                .lineLimit(1)
+            } else if let resetText = costUsage.resetText {
+                HStack(spacing: 3) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 7))
+
+                    Text(resetText)
+                        .font(AppTheme.captionFont(size: 9))
+                }
+                .foregroundStyle(AppTheme.textTertiary(for: colorScheme))
+                .lineLimit(1)
             }
-            .foregroundStyle(AppTheme.textTertiary(for: colorScheme))
-            .lineLimit(1)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -105,7 +123,8 @@ struct CostStatCard: View {
 
     // MARK: - Budget Progress Bar
 
-    private var budgetProgressBar: some View {
+    @ViewBuilder
+    private func budgetProgressBar(budget: Decimal) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -123,14 +142,12 @@ struct CostStatCard: View {
             .frame(height: 5)
 
             // Budget label
-            if let budget {
-                HStack {
-                    Text("\(Int(budgetPercentUsed))% of \(formatBudget(budget)) budget")
-                        .font(AppTheme.captionFont(size: 8))
-                        .foregroundStyle(AppTheme.textTertiary(for: colorScheme))
+            HStack {
+                Text("\(Int(budgetPercentUsed))% of \(formatBudget(budget)) budget")
+                    .font(AppTheme.captionFont(size: 8))
+                    .foregroundStyle(AppTheme.textTertiary(for: colorScheme))
 
-                    Spacer()
-                }
+                Spacer()
             }
         }
     }
