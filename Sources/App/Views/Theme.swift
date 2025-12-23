@@ -637,6 +637,43 @@ extension QuotaStatus {
     }
 }
 
+// MARK: - BudgetStatus Theme Extension
+
+extension BudgetStatus {
+    /// Returns the theme color for this budget status
+    func themeColor(for scheme: ColorScheme) -> Color {
+        switch self {
+        case .withinBudget:
+            AppTheme.statusHealthy(for: scheme)
+        case .approachingLimit:
+            AppTheme.statusWarning(for: scheme)
+        case .overBudget:
+            AppTheme.statusCritical(for: scheme)
+        }
+    }
+
+    /// Legacy static property for backward compatibility
+    var themeColor: Color {
+        switch self {
+        case .withinBudget:
+            AppTheme.statusHealthy
+        case .approachingLimit:
+            AppTheme.statusWarning
+        case .overBudget:
+            AppTheme.statusCritical
+        }
+    }
+
+    /// Simple display color for status indicators
+    var displayColor: Color {
+        switch self {
+        case .withinBudget: .green
+        case .approachingLimit: .orange
+        case .overBudget: .red
+        }
+    }
+}
+
 // MARK: - Theme Switcher Button
 
 struct ThemeSwitcherButton: View {

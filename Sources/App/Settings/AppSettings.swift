@@ -27,6 +27,22 @@ public final class AppSettings {
         }
     }
 
+    // MARK: - Claude API Budget Settings
+
+    /// Whether Claude API budget tracking is enabled
+    public var claudeApiBudgetEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(claudeApiBudgetEnabled, forKey: Keys.claudeApiBudgetEnabled)
+        }
+    }
+
+    /// The budget threshold for Claude API usage (in dollars)
+    public var claudeApiBudget: Decimal {
+        didSet {
+            UserDefaults.standard.set(NSDecimalNumber(decimal: claudeApiBudget).doubleValue, forKey: Keys.claudeApiBudget)
+        }
+    }
+
     // MARK: - Token Management
 
     /// Whether a GitHub Copilot token is configured
@@ -55,6 +71,8 @@ public final class AppSettings {
         self.credentialStore = credentialStore
         self.copilotEnabled = UserDefaults.standard.bool(forKey: Keys.copilotEnabled)
         self.githubUsername = credentialStore.get(forKey: CredentialKey.githubUsername) ?? ""
+        self.claudeApiBudgetEnabled = UserDefaults.standard.bool(forKey: Keys.claudeApiBudgetEnabled)
+        self.claudeApiBudget = Decimal(UserDefaults.standard.double(forKey: Keys.claudeApiBudget))
     }
 }
 
@@ -63,5 +81,7 @@ public final class AppSettings {
 private extension AppSettings {
     enum Keys {
         static let copilotEnabled = "copilotEnabled"
+        static let claudeApiBudgetEnabled = "claudeApiBudgetEnabled"
+        static let claudeApiBudget = "claudeApiBudget"
     }
 }

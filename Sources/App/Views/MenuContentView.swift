@@ -12,6 +12,7 @@ struct MenuContentView: View {
     @State private var isHoveringRefresh = false
     @State private var animateIn = false
     @State private var showSettings = false
+    @State private var settings = AppSettings.shared
 
     /// The currently selected provider
     private var selectedProvider: (any AIProvider)? {
@@ -217,9 +218,9 @@ struct MenuContentView: View {
     private var metricsContent: some View {
         if let provider = selectedProvider, let snapshot = provider.snapshot {
             VStack(spacing: 12) {
-                // Account info card
-                if let email = snapshot.accountEmail {
-                    accountCard(email: email, snapshot: snapshot)
+                // Account info card - show if email OR organization is available
+                if let displayName = snapshot.accountEmail ?? snapshot.accountOrganization {
+                    accountCard(displayName: displayName, snapshot: snapshot)
                 }
 
                 // Stats Grid - Wrapped style with large numbers
@@ -234,7 +235,7 @@ struct MenuContentView: View {
         }
     }
 
-    private func accountCard(email: String, snapshot: UsageSnapshot) -> some View {
+    private func accountCard(displayName: String, snapshot: UsageSnapshot) -> some View {
         HStack(spacing: 10) {
             // Avatar circle
             ZStack {
@@ -242,16 +243,31 @@ struct MenuContentView: View {
                     .fill(AppTheme.providerGradient(for: selectedProviderId, scheme: colorScheme))
                     .frame(width: 32, height: 32)
 
-                Text(String(email.prefix(1)).uppercased())
+                Text(String(displayName.prefix(1)).uppercased())
                     .font(AppTheme.titleFont(size: 14))
                     .foregroundStyle(.white)
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(email)
-                    .font(AppTheme.bodyFont(size: 12))
-                    .foregroundStyle(AppTheme.textPrimary(for: colorScheme))
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(displayName)
+                        .font(AppTheme.bodyFont(size: 12))
+                        .foregroundStyle(AppTheme.textPrimary(for: colorScheme))
+                        .lineLimit(1)
+
+                    // Account type badge
+                    if let accountType = snapshot.accountType {
+                        Text(accountType.badgeText)
+                            .font(AppTheme.captionFont(size: 8))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(AppTheme.purpleVibrant(for: colorScheme).opacity(0.8))
+                            )
+                    }
+                }
 
                 Text("Updated \(snapshot.ageDescription)")
                     .font(AppTheme.captionFont(size: 10))
@@ -270,19 +286,31 @@ struct MenuContentView: View {
         .glassCard(cornerRadius: 12, padding: 10)
     }
 
+    @ViewBuilder
     private func statsGrid(snapshot: UsageSnapshot) -> some View {
-        LazyVGrid(
-            columns: [
-                GridItem(.flexible(), spacing: 10),
-                GridItem(.flexible(), spacing: 10)
-            ],
-            spacing: 10
-        ) {
-            ForEach(Array(snapshot.quotas.enumerated()), id: \.element.quotaType) { index, quota in
-                WrappedStatCard(quota: quota, delay: Double(index) * 0.08)
+        VStack(spacing: 10) {
+            // Show quota cards if quotas exist (Max/Pro accounts)
+            if !snapshot.quotas.isEmpty {
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: 10),
+                        GridItem(.flexible(), spacing: 10)
+                    ],
+                    spacing: 10
+                ) {
+                    ForEach(Array(snapshot.quotas.enumerated()), id: \.element.quotaType) { index, quota in
+                        WrappedStatCard(quota: quota, delay: Double(index) * 0.08)
+                    }
+                }
+            }
+
+            // Show Extra usage cost card if available (Pro with Extra usage enabled)
+            if let costUsage = snapshot.costUsage {
+                let budget = settings.claudeApiBudgetEnabled ? settings.claudeApiBudget : nil
+                CostStatCard(costUsage: costUsage, budget: budget, delay: Double(snapshot.quotas.count) * 0.08)
             }
         }
-        .padding(.top, 4) // Room for hover scale effect
+        .padding(.top, 4)
     }
 
     private var loadingState: some View {
