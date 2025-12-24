@@ -700,7 +700,7 @@ struct ThemeOptionButton: View {
     private var backgroundColor: Color {
         if isSelected {
             if mode == .christmas || isChristmas {
-                return AppTheme.christmasGreenDeep.opacity(0.3)
+                return AppTheme.christmasGold.opacity(0.15)
             }
             return AppTheme.purpleVibrant(for: colorScheme).opacity(0.15)
         }

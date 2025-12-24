@@ -130,7 +130,7 @@ struct StatusBarIcon: View {
 
     private var iconColor: Color {
         if isChristmas {
-            return AppTheme.christmasCandyRed
+            return AppTheme.christmasGold
         }
         return status.displayColor
     }

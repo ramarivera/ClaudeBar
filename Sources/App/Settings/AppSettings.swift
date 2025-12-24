@@ -17,8 +17,22 @@ public final class AppSettings {
     public var themeMode: String {
         didSet {
             UserDefaults.standard.set(themeMode, forKey: Keys.themeMode)
+            // Mark that user has explicitly chosen a theme
+            if !isInitializing {
+                userHasChosenTheme = true
+            }
         }
     }
+
+    /// Whether the user has explicitly chosen a theme (vs auto-enabled Christmas)
+    public var userHasChosenTheme: Bool {
+        didSet {
+            UserDefaults.standard.set(userHasChosenTheme, forKey: Keys.userHasChosenTheme)
+        }
+    }
+
+    /// Track initialization to avoid marking theme as user-chosen during init
+    private var isInitializing = true
 
     // MARK: - Provider Settings
 
@@ -78,11 +92,44 @@ public final class AppSettings {
 
     private init(credentialStore: any CredentialStore = UserDefaultsCredentialStore.shared) {
         self.credentialStore = credentialStore
+        self.userHasChosenTheme = UserDefaults.standard.bool(forKey: Keys.userHasChosenTheme)
         self.themeMode = UserDefaults.standard.string(forKey: Keys.themeMode) ?? "system"
         self.copilotEnabled = UserDefaults.standard.bool(forKey: Keys.copilotEnabled)
         self.githubUsername = credentialStore.get(forKey: CredentialKey.githubUsername) ?? ""
         self.claudeApiBudgetEnabled = UserDefaults.standard.bool(forKey: Keys.claudeApiBudgetEnabled)
         self.claudeApiBudget = Decimal(UserDefaults.standard.double(forKey: Keys.claudeApiBudget))
+
+        // Auto-enable Christmas theme during Dec 24-26 if user hasn't explicitly chosen
+        applySeasonalTheme()
+
+        self.isInitializing = false
+    }
+
+    // MARK: - Seasonal Theme
+
+    /// Check if today is within the Christmas period (Dec 24-26)
+    public static func isChristmasPeriod(date: Date = Date()) -> Bool {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.month, .day], from: date)
+        guard let month = components.month, let day = components.day else { return false }
+        return month == 12 && (24...26).contains(day)
+    }
+
+    /// Apply seasonal theme if appropriate
+    private func applySeasonalTheme() {
+        let isChristmas = Self.isChristmasPeriod()
+
+        if isChristmas {
+            // During Christmas: auto-enable if user hasn't explicitly chosen a theme
+            if !userHasChosenTheme {
+                themeMode = "christmas"
+            }
+        } else {
+            // After Christmas: revert to system if still on Christmas theme and user didn't explicitly choose it
+            if themeMode == "christmas" && !userHasChosenTheme {
+                themeMode = "system"
+            }
+        }
     }
 }
 
@@ -91,6 +138,7 @@ public final class AppSettings {
 private extension AppSettings {
     enum Keys {
         static let themeMode = "themeMode"
+        static let userHasChosenTheme = "userHasChosenTheme"
         static let copilotEnabled = "copilotEnabled"
         static let claudeApiBudgetEnabled = "claudeApiBudgetEnabled"
         static let claudeApiBudget = "claudeApiBudget"

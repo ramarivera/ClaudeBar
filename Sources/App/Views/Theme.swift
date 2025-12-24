@@ -123,104 +123,110 @@ enum AppTheme {
     }
 
     // MARK: - Christmas Theme Colors
+    // Design: "Vibrant American Christmas" - bold red & green with sparkly gold
+    // Deep neutral background lets vibrant colors POP without blending into mud
 
-    /// Deep Christmas red - rich crimson
-    static let christmasRed = Color(red: 0.78, green: 0.12, blue: 0.18)
+    /// Christmas black - deep neutral background (lets colors pop)
+    static let christmasBlack = Color(red: 0.06, green: 0.06, blue: 0.08)
 
-    /// Bright Christmas red - candy apple
-    static let christmasCandyRed = Color(red: 0.92, green: 0.22, blue: 0.28)
+    /// Christmas charcoal - secondary background
+    static let christmasCharcoal = Color(red: 0.10, green: 0.10, blue: 0.12)
 
-    /// Holly green - deep forest
-    static let christmasGreenDeep = Color(red: 0.08, green: 0.38, blue: 0.18)
+    /// Vibrant candy red - bright, saturated holiday red
+    static let christmasRed = Color(red: 0.92, green: 0.12, blue: 0.15)
 
-    /// Bright Christmas green - holly leaf
-    static let christmasGreenBright = Color(red: 0.15, green: 0.58, blue: 0.28)
+    /// Deep crimson - darker red accent
+    static let christmasCrimson = Color(red: 0.70, green: 0.08, blue: 0.12)
 
-    /// Christmas gold - warm metallic
-    static let christmasGold = Color(red: 0.95, green: 0.78, blue: 0.28)
+    /// Vibrant holly green - bright, saturated green
+    static let christmasGreen = Color(red: 0.10, green: 0.72, blue: 0.32)
 
-    /// Snow white - icy sparkle
-    static let christmasSnow = Color(red: 0.96, green: 0.98, blue: 1.0)
+    /// Deep forest green - darker green accent
+    static let christmasForest = Color(red: 0.05, green: 0.45, blue: 0.20)
 
-    /// Ice blue - frosty accent
-    static let christmasIce = Color(red: 0.78, green: 0.92, blue: 0.98)
+    /// Sparkle gold - bright festive gold
+    static let christmasGold = Color(red: 1.0, green: 0.84, blue: 0.0)
 
-    /// Christmas cranberry - deep berry
-    static let christmasCranberry = Color(red: 0.58, green: 0.08, blue: 0.22)
+    /// Warm gold - slightly darker gold
+    static let christmasGoldWarm = Color(red: 0.95, green: 0.70, blue: 0.15)
 
-    /// Pine needle green - subtle forest
-    static let christmasPine = Color(red: 0.12, green: 0.28, blue: 0.18)
+    /// Snow white - pure white
+    static let christmasSnow = Color.white
+
+    /// Silver sparkle - cool accent
+    static let christmasSilver = Color(red: 0.85, green: 0.88, blue: 0.92)
 
     // MARK: - Christmas Gradients
 
-    /// Christmas background gradient - deep festive night
+    /// Christmas background - deep with visible red/green zones
     static let christmasBackgroundGradient = LinearGradient(
         colors: [
-            christmasPine,
-            christmasGreenDeep,
-            christmasCranberry.opacity(0.6)
+            Color(red: 0.25, green: 0.05, blue: 0.08),  // deep red tint top
+            christmasCharcoal,
+            Color(red: 0.05, green: 0.18, blue: 0.10)   // deep green tint bottom
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
-    /// Christmas card gradient - frosted glass with holiday warmth
+    /// Christmas card gradient - dark glass with subtle gold shimmer
     static let christmasCardGradient = LinearGradient(
         colors: [
-            christmasSnow.opacity(0.22),
-            christmasIce.opacity(0.12)
+            Color.white.opacity(0.12),
+            christmasGold.opacity(0.03)
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
-    /// Christmas accent gradient - red and gold festive
+    /// Christmas accent gradient - red to gold (festive!)
     static let christmasAccentGradient = LinearGradient(
-        colors: [christmasCandyRed, christmasGold],
+        colors: [christmasRed, christmasGold],
         startPoint: .leading,
         endPoint: .trailing
     )
 
-    /// Christmas pill gradient - subtle holly
-    static let christmasPillGradient = LinearGradient(
-        colors: [
-            christmasGreenBright.opacity(0.5),
-            christmasRed.opacity(0.35)
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
+    /// Christmas green gradient - for buttons
+    static let christmasGreenGradient = LinearGradient(
+        colors: [christmasGreen, christmasForest],
+        startPoint: .leading,
+        endPoint: .trailing
     )
 
-    /// Candy cane stripe gradient
-    static let candyCaneGradient = LinearGradient(
+    /// Christmas red gradient - for buttons
+    static let christmasRedGradient = LinearGradient(
+        colors: [christmasRed, christmasCrimson],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+
+    /// Christmas pill gradient - subtle red/green shimmer
+    static let christmasPillGradient = LinearGradient(
         colors: [
-            christmasSnow,
-            christmasCandyRed,
-            christmasSnow,
-            christmasCandyRed,
-            christmasSnow
+            christmasRed.opacity(0.3),
+            christmasGreen.opacity(0.2)
         ],
         startPoint: .leading,
         endPoint: .trailing
     )
 
     /// Christmas glass background
-    static let christmasGlassBackground = christmasSnow.opacity(0.15)
+    static let christmasGlassBackground = Color.white.opacity(0.10)
 
-    /// Christmas glass border
-    static let christmasGlassBorder = christmasGold.opacity(0.35)
+    /// Christmas glass border - festive gold/red mix
+    static let christmasGlassBorder = christmasGold.opacity(0.6)
 
-    /// Christmas glass highlight
-    static let christmasGlassHighlight = christmasSnow.opacity(0.5)
+    /// Christmas glass highlight - bright gold sparkle
+    static let christmasGlassHighlight = christmasGold.opacity(0.7)
 
-    /// Christmas text primary - snow white
+    /// Christmas text primary - pure white
     static let christmasTextPrimary = christmasSnow
 
-    /// Christmas text secondary - ice blue tint
-    static let christmasTextSecondary = christmasIce.opacity(0.85)
+    /// Christmas text secondary - softer white
+    static let christmasTextSecondary = christmasSnow.opacity(0.85)
 
-    /// Christmas text tertiary - muted ice
-    static let christmasTextTertiary = christmasIce.opacity(0.6)
+    /// Christmas text tertiary - muted
+    static let christmasTextTertiary = christmasSnow.opacity(0.6)
 
     // MARK: - Legacy Static Colors (for backward compatibility)
 
@@ -977,29 +983,51 @@ struct ChristmasBackgroundOrbs: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                // Large green orb (top left)
+                // BIG VIBRANT RED orb (top left) - very visible!
                 Circle()
                     .fill(
                         RadialGradient(
                             colors: [
-                                AppTheme.christmasGreenBright.opacity(0.45),
+                                AppTheme.christmasRed.opacity(0.85),
+                                AppTheme.christmasRed.opacity(0.5),
+                                AppTheme.christmasCrimson.opacity(0.2),
                                 Color.clear
                             ],
                             center: .center,
                             startRadius: 0,
-                            endRadius: 120
+                            endRadius: 180
                         )
                     )
-                    .frame(width: 240, height: 240)
-                    .offset(x: -60, y: -80)
-                    .blur(radius: 40)
+                    .frame(width: 360, height: 360)
+                    .offset(x: -100, y: -100)
+                    .blur(radius: 35)
 
-                // Red orb (bottom right)
+                // BIG VIBRANT GREEN orb (bottom right) - very visible!
                 Circle()
                     .fill(
                         RadialGradient(
                             colors: [
-                                AppTheme.christmasCandyRed.opacity(0.4),
+                                AppTheme.christmasGreen.opacity(0.8),
+                                AppTheme.christmasGreen.opacity(0.45),
+                                AppTheme.christmasForest.opacity(0.2),
+                                Color.clear
+                            ],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 170
+                        )
+                    )
+                    .frame(width: 340, height: 340)
+                    .offset(x: geo.size.width - 40, y: geo.size.height - 120)
+                    .blur(radius: 30)
+
+                // GOLD sparkle orb (center top) - ties it together
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                AppTheme.christmasGold.opacity(0.7),
+                                AppTheme.christmasGoldWarm.opacity(0.3),
                                 Color.clear
                             ],
                             center: .center,
@@ -1008,15 +1036,15 @@ struct ChristmasBackgroundOrbs: View {
                         )
                     )
                     .frame(width: 200, height: 200)
-                    .offset(x: geo.size.width - 80, y: geo.size.height - 150)
-                    .blur(radius: 30)
+                    .offset(x: geo.size.width * 0.5 - 100, y: -20)
+                    .blur(radius: 25)
 
-                // Golden sparkle orb (center)
+                // Small red accent (right side middle)
                 Circle()
                     .fill(
                         RadialGradient(
                             colors: [
-                                AppTheme.christmasGold.opacity(0.25),
+                                AppTheme.christmasRed.opacity(0.5),
                                 Color.clear
                             ],
                             center: .center,
@@ -1025,8 +1053,25 @@ struct ChristmasBackgroundOrbs: View {
                         )
                     )
                     .frame(width: 120, height: 120)
-                    .offset(x: geo.size.width * 0.5 - 60, y: geo.size.height * 0.3)
+                    .offset(x: geo.size.width - 80, y: geo.size.height * 0.35)
                     .blur(radius: 20)
+
+                // Small green accent (left side bottom)
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                AppTheme.christmasGreen.opacity(0.45),
+                                Color.clear
+                            ],
+                            center: .center,
+                            startRadius: 0,
+                            endRadius: 55
+                        )
+                    )
+                    .frame(width: 110, height: 110)
+                    .offset(x: 30, y: geo.size.height * 0.7)
+                    .blur(radius: 18)
             }
         }
     }

@@ -158,11 +158,11 @@ struct MenuContentView: View {
                         .font(AppTheme.titleFont(size: 18))
                         .foregroundStyle(isChristmas ? AppTheme.christmasTextPrimary : AppTheme.textPrimary(for: colorScheme))
 
-                    // Christmas tree icon
+                    // Christmas gift icon - vibrant red
                     if isChristmas {
                         Image(systemName: "gift.fill")
                             .font(.system(size: 12))
-                            .foregroundStyle(AppTheme.christmasCandyRed)
+                            .foregroundStyle(AppTheme.christmasRed)
                     }
                 }
 
@@ -401,7 +401,7 @@ struct MenuContentView: View {
                 icon: isCurrentlyRefreshing ? "arrow.trianglehead.2.counterclockwise.rotate.90" : "arrow.clockwise",
                 label: isCurrentlyRefreshing ? "Syncing" : "Refresh",
                 gradient: isChristmas
-                    ? LinearGradient(colors: [AppTheme.christmasGreenBright, AppTheme.christmasGreenDeep], startPoint: .leading, endPoint: .trailing)
+                    ? AppTheme.christmasGreenGradient
                     : AppTheme.accentGradient(for: colorScheme),
                 isLoading: isCurrentlyRefreshing,
                 isChristmas: isChristmas
