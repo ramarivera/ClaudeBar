@@ -7,7 +7,19 @@
 [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-orange.svg)](https://swift.org)
 [![Platform](https://img.shields.io/badge/Platform-macOS%2015-blue.svg)](https://developer.apple.com)
 
-> **Merry Christmas & Happy Holidays!** Wishing all developers warmth, joy, and bug-free code this holiday season. May your quotas stay green and your builds always succeed!
+> 🎄✨ **Merry Christmas Eve, everyone!** ✨🎄
+>
+> Wishing warmth, joy, and peace to all who celebrate. May your holidays be filled with love and laughter.
+>
+> Time to slow down, enjoy the magic, and celebrate with the people who matter most.
+>
+> However you spend tonight - we hope it's filled with joy 🎄
+>
+> May your code be bug-free, your quotas stay green, and your builds always succeed! 🚀
+>
+> *(P.S. Check ClaudeBar for a snowy surprise ❄️)*
+>
+> **Happy Holidays!** ❤️🎁
 
 A macOS menu bar application that monitors AI coding assistant usage quotas. Keep track of your Claude, Codex, Gemini, and GitHub Copilot usage at a glance.
 
