@@ -7,6 +7,8 @@
 [![Swift 6.2](https://img.shields.io/badge/Swift-6.2-orange.svg)](https://swift.org)
 [![Platform](https://img.shields.io/badge/Platform-macOS%2015-blue.svg)](https://developer.apple.com)
 
+> **Merry Christmas & Happy Holidays!** Wishing all developers warmth, joy, and bug-free code this holiday season. May your quotas stay green and your builds always succeed!
+
 A macOS menu bar application that monitors AI coding assistant usage quotas. Keep track of your Claude, Codex, Gemini, and GitHub Copilot usage at a glance.
 
 <p align="center">
@@ -18,11 +20,21 @@ A macOS menu bar application that monitors AI coding assistant usage quotas. Kee
   <em>Dark Mode &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Light Mode</em>
 </p>
 
+### Christmas Theme
+
+<p align="center">
+  <img src="docs/Christmas-theme.png" alt="ClaudeBar Christmas Theme" width="450"/>
+</p>
+<p align="center">
+  <em>Festive holiday theme with snowfall animation - automatically enabled during the Christmas season!</em>
+</p>
+
 ## Features
 
 - **Multi-Provider Support** - Monitor Claude, Codex, Gemini, and GitHub Copilot quotas in one place
 - **Real-Time Quota Tracking** - View Session, Weekly, and Model-specific usage percentages
 - **Light & Dark Themes** - Automatically adapts to your system appearance
+- **Seasonal Themes** - Festive Christmas theme with snowfall animation, auto-enabled during the holiday season
 - **Visual Status Indicators** - Color-coded progress bars (green/yellow/red) show quota health
 - **System Notifications** - Get alerted when quota status changes to warning or critical
 - **Auto-Refresh** - Automatically updates quotas at configurable intervals
