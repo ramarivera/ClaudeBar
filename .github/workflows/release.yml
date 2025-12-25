@@ -10,6 +10,11 @@ on:
         description: 'Version to release (e.g., 1.0.0 or 1.0.0-beta.1)'
         required: true
         type: string
+      publish_appcast:
+        description: 'Publish appcast to GitHub Pages (auto-updates)'
+        required: false
+        type: boolean
+        default: true
       debug:
         description: 'Enable verbose debug output'
         required: false
@@ -18,6 +23,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 env:
   APP_NAME: ClaudeBar
@@ -32,6 +39,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for accurate build number
 
       - name: Setup Swift
         uses: SwiftyLab/setup-swift@latest
@@ -75,12 +84,13 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           INFO_PLIST="Sources/App/Info.plist"
-          BUILD_NUMBER=$(git rev-list --count HEAD)
+          BUILD_NUMBER="${{ github.run_number }}"
 
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$INFO_PLIST"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$INFO_PLIST"
 
           echo "Updated version to $VERSION (build $BUILD_NUMBER)"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
 
       - name: Resolve Dependencies
         run: swift package resolve
@@ -380,6 +390,65 @@ jobs:
             ```
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Sparkle Appcast
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_appcast) || (github.event_name == 'push' && steps.version.outputs.is_prerelease == 'false') }}
+        env:
+          SPARKLE_EDDSA_PRIVATE_KEY: ${{ secrets.SPARKLE_EDDSA_PRIVATE_KEY }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/${NOTARIZED_ZIP}"
+
+          # Find sign_update tool
+          SIGN_UPDATE=$(find .build -name "sign_update" -path "*/bin/*" | head -1)
+
+          if [ -z "$SIGN_UPDATE" ]; then
+            echo "Warning: sign_update not found, skipping appcast generation"
+            exit 0
+          fi
+
+          if [ -z "$SPARKLE_EDDSA_PRIVATE_KEY" ]; then
+            echo "Warning: SPARKLE_EDDSA_PRIVATE_KEY not set, skipping appcast generation"
+            exit 0
+          fi
+
+          # Get file size
+          FILE_SIZE=$(stat -f%z "$NOTARIZED_ZIP")
+
+          # Sign the archive
+          echo "Signing archive with EdDSA..."
+          SIGNATURE=$("$SIGN_UPDATE" "$NOTARIZED_ZIP" --ed-key-file <(echo "$SPARKLE_EDDSA_PRIVATE_KEY") 2>&1 || true)
+
+          # Extract EdDSA signature
+          ED_SIGNATURE=$(echo "$SIGNATURE" | grep -o 'edSignature="[^"]*"' | sed 's/edSignature="//;s/"//' || echo "")
+
+          if [ -z "$ED_SIGNATURE" ]; then
+            echo "Warning: Failed to extract EdDSA signature"
+            echo "Signature output: $SIGNATURE"
+            exit 0
+          fi
+
+          echo "EdDSA signature generated successfully"
+
+          # Generate/update appcast.xml (append new version, preserve history)
+          # Use the same build number from Info.plist (GitHub release count)
+          echo "Build number: $BUILD_NUMBER"
+          ./scripts/update-appcast.sh "$VERSION" "$BUILD_NUMBER" "$DOWNLOAD_URL" "$ED_SIGNATURE" "$FILE_SIZE"
+
+      - name: Setup Pages
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_appcast) || (github.event_name == 'push' && steps.version.outputs.is_prerelease == 'false') }}
+        uses: actions/configure-pages@v4
+
+      - name: Upload appcast to Pages
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_appcast) || (github.event_name == 'push' && steps.version.outputs.is_prerelease == 'false') }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_appcast) || (github.event_name == 'push' && steps.version.outputs.is_prerelease == 'false') }}
+        id: deployment
+        uses: actions/deploy-pages@v4
 
       - name: Cleanup
         if: always()
