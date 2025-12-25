@@ -39,6 +39,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for accurate build number
 
       - name: Setup Swift
         uses: SwiftyLab/setup-swift@latest
@@ -427,43 +429,9 @@ jobs:
 
           echo "EdDSA signature generated successfully"
 
-          # Generate appcast.xml
-          PUB_DATE=$(date -R)
+          # Generate/update appcast.xml (append new version, preserve history)
           BUILD_NUMBER=$(git rev-list --count HEAD)
-          mkdir -p docs
-
-          cat > docs/appcast.xml << EOF
-          <?xml version="1.0" encoding="utf-8"?>
-          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
-            <channel>
-              <title>ClaudeBar Updates</title>
-              <link>https://tddworks.github.io/ClaudeBar/appcast.xml</link>
-              <description>Most recent updates for ClaudeBar</description>
-              <language>en</language>
-              <item>
-                <title>Version ${VERSION}</title>
-                <pubDate>${PUB_DATE}</pubDate>
-                <sparkle:version>${BUILD_NUMBER}</sparkle:version>
-                <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-                <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
-                <description><![CDATA[
-                  <h2>What's New in ${VERSION}</h2>
-                  <p>Bug fixes and improvements.</p>
-                  <p>See <a href="https://github.com/tddworks/ClaudeBar/releases/tag/v${VERSION}">release notes</a> for details.</p>
-                ]]></description>
-                <enclosure
-                  url="${DOWNLOAD_URL}"
-                  sparkle:edSignature="${ED_SIGNATURE}"
-                  length="${FILE_SIZE}"
-                  type="application/octet-stream"
-                />
-              </item>
-            </channel>
-          </rss>
-          EOF
-
-          echo "Generated appcast.xml:"
-          cat docs/appcast.xml
+          ./scripts/update-appcast.sh "$VERSION" "$BUILD_NUMBER" "$DOWNLOAD_URL" "$ED_SIGNATURE" "$FILE_SIZE"
 
       - name: Setup Pages
         if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_appcast) || (github.event_name == 'push' && steps.version.outputs.is_prerelease == 'false') }}

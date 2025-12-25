@@ -153,6 +153,7 @@ The private key used to sign the release must match the public key in Info.plist
 | `docs/appcast.xml` | Update feed (deployed to GitHub Pages) |
 | `.github/workflows/release.yml` | Automated release with appcast generation |
 | `scripts/sparkle-setup.sh` | EdDSA key generation helper |
+| `scripts/update-appcast.sh` | Appcast update script (appends versions) |
 
 ## References
 
