@@ -48,10 +48,7 @@ jobs:
           swift-version: ${{ env.SWIFT_VERSION }}
 
       - name: Install Tuist
-        run: |
-          curl -Ls https://install.tuist.io | bash
-          echo "/usr/local/bin" >> $GITHUB_PATH
-          tuist version
+        run: brew install tuist
 
       - name: Cache Tuist
         uses: actions/cache@v4
