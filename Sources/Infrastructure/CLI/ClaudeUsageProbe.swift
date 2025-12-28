@@ -92,6 +92,8 @@ public final class ClaudeUsageProbe: UsageProbe, @unchecked Sendable {
         ], text: clean)
 
         guard let sessionPct else {
+            Logger.probes.error("Claude parse failed: could not find 'Current session' percentage in output")
+            Logger.probes.debug("Raw output for debugging:\n\(clean, privacy: .private)")
             throw ProbeError.parseFailed("Could not find session usage")
         }
 
@@ -431,15 +433,34 @@ public final class ClaudeUsageProbe: UsageProbe, @unchecked Sendable {
         let lower = text.lowercased()
 
         if lower.contains("do you trust the files in this folder?"), !lower.contains("current session") {
+            let folder = extractFolderFromTrustPrompt(text) ?? "unknown"
+            Logger.probes.error("Claude probe blocked: folder trust required for '\(folder, privacy: .private)'")
             return .folderTrustRequired
         }
 
         if lower.contains("token_expired") || lower.contains("token has expired") {
+            Logger.probes.error("Claude probe failed: token has expired, re-authentication required")
             return .authenticationRequired
         }
 
         if lower.contains("authentication_error") {
+            Logger.probes.error("Claude probe failed: authentication error, login required")
             return .authenticationRequired
+        }
+
+        if lower.contains("not logged in") || lower.contains("please log in") {
+            Logger.probes.error("Claude probe failed: not logged in")
+            return .authenticationRequired
+        }
+
+        if lower.contains("update required") || lower.contains("please update") {
+            Logger.probes.error("Claude probe failed: CLI update required")
+            return .updateRequired
+        }
+
+        if lower.contains("rate limit") || lower.contains("too many requests") {
+            Logger.probes.warning("Claude probe hit rate limit")
+            return .executionFailed("Rate limited - too many requests")
         }
 
         return nil

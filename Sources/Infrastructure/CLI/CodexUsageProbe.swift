@@ -89,6 +89,7 @@ public struct CodexUsageProbe: UsageProbe {
         }
 
         guard !quotas.isEmpty else {
+            Logger.probes.error("Codex probe failed: no rate limits in RPC response")
             throw ProbeError.parseFailed("No rate limits found")
         }
 
@@ -130,6 +131,8 @@ public struct CodexUsageProbe: UsageProbe {
         }
 
         if quotas.isEmpty {
+            Logger.probes.error("Codex parse failed: could not find usage limits in TTY output")
+            Logger.probes.debug("Raw output for debugging:\n\(clean, privacy: .private)")
             throw ProbeError.parseFailed("Could not find usage limits in Codex output")
         }
 
@@ -180,11 +183,18 @@ public struct CodexUsageProbe: UsageProbe {
         let lower = text.lowercased()
 
         if lower.contains("data not available yet") {
+            Logger.probes.error("Codex probe failed: data not available yet")
             return .parseFailed("Data not available yet")
         }
 
         if lower.contains("update available") && lower.contains("codex") {
+            Logger.probes.error("Codex probe failed: CLI update required")
             return .updateRequired
+        }
+
+        if lower.contains("not logged in") || lower.contains("please log in") {
+            Logger.probes.error("Codex probe failed: not logged in")
+            return .authenticationRequired
         }
 
         return nil

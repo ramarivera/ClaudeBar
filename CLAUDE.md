@@ -189,15 +189,52 @@ Logger.updates        // Sparkle updates
 - **Use `.private(mask: .hash)`** for: correlation IDs you need to track
 - **Safe as `.public`**: provider names, status enums, counts, URLs
 
+### Log Levels
+
+OSLog levels are used at the **call site** - you choose the level when logging:
+
+| Level | Method | Persistence | Use Case |
+|-------|--------|-------------|----------|
+| `trace` | `.trace()` | Memory only | Extremely verbose debugging |
+| `debug` | `.debug()` | Memory only | Development diagnostics |
+| `info` | `.info()` | With `log collect` | Informational events |
+| `notice` | `.notice()` | Always persisted | Significant events |
+| `warning` | `.warning()` | Always persisted | Potential issues |
+| `error` | `.error()` | Always persisted | Recoverable errors |
+| `fault` | `.fault()` | Always persisted | Critical failures |
+
+**Key insight**: OSLog filtering happens at the *consumer* level (Console.app, `log` command), not at the app level. The app emits all logs - the OS filters what gets shown/persisted based on level.
+
 ### Viewing Logs
 
 ```bash
 # Console.app filter
 subsystem:com.tddworks.ClaudeBar
 
-# Terminal
-log show --predicate 'subsystem == "com.tddworks.ClaudeBar"' --last 1h
+# Terminal - show all levels (including debug)
+log show --predicate 'subsystem == "com.tddworks.ClaudeBar"' --info --debug --last 1h
+
+# Terminal - errors only
+log show --predicate 'subsystem == "com.tddworks.ClaudeBar" AND messageType == error' --last 1h
+
+# Live stream (for debugging)
+log stream --predicate 'subsystem == "com.tddworks.ClaudeBar"' --info --debug
 ```
+
+### Debugging Probe Issues
+
+When a probe fails (e.g., `claude /usage`), all errors are logged with context:
+
+```bash
+# See probe-specific logs
+log show --predicate 'subsystem == "com.tddworks.ClaudeBar" AND category == "probes"' --info --debug --last 1h
+```
+
+Common error patterns logged:
+- `"Claude probe failed: token has expired"` → Re-login required
+- `"Claude probe blocked: folder trust required"` → Trust the folder in Claude CLI
+- `"Codex probe failed: data not available yet"` → Wait for Codex to sync
+- `"Gemini probe failed: no access token"` → Re-authenticate with Gemini CLI
 
 ## Dependencies
 
