@@ -57,6 +57,11 @@ public final class AIProviderRegistry: @unchecked Sendable {
         shared.provider(for: "gemini")
     }
 
+    /// Antigravity provider (if registered)
+    public static var antigravity: (any AIProvider)? {
+        shared.provider(for: "antigravity")
+    }
+
     // MARK: - Lookup
 
     /// Finds a provider by its ID

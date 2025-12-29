@@ -72,8 +72,9 @@ struct ClaudeBarApp: App {
             ClaudeProvider(probe: ClaudeUsageProbe()),
             CodexProvider(probe: CodexUsageProbe()),
             GeminiProvider(probe: GeminiUsageProbe()),
+            AntigravityProvider(probe: AntigravityUsageProbe()),
         ]
-        AppLog.providers.info("Created base providers: Claude, Codex, Gemini")
+        AppLog.providers.info("Created base providers: Claude, Codex, Gemini, Antigravity")
 
         // Add Copilot provider if configured
         if AppSettings.shared.copilotEnabled && AppSettings.shared.hasCopilotToken {
