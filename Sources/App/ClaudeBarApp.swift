@@ -11,11 +11,19 @@ final class AppState {
     /// The registered providers (rich domain models)
     var providers: [any AIProvider] = []
 
+    /// The currently selected provider ID (for menu bar icon status)
+    var selectedProviderId: String = "claude"
+
     /// The overall status across all providers
     var overallStatus: QuotaStatus {
         providers
             .compactMap(\.snapshot?.overallStatus)
             .max() ?? .healthy
+    }
+
+    /// Status of the currently selected provider (for menu bar icon)
+    var selectedProviderStatus: QuotaStatus {
+        providers.first { $0.id == selectedProviderId }?.snapshot?.overallStatus ?? .healthy
     }
 
     /// Whether any provider is currently refreshing
@@ -123,7 +131,7 @@ struct ClaudeBarApp: App {
                 .themeProvider(currentThemeMode)
             #endif
         } label: {
-            StatusBarIcon(status: appState.overallStatus, isChristmas: currentThemeMode == .christmas)
+            StatusBarIcon(status: appState.selectedProviderStatus, isChristmas: currentThemeMode == .christmas)
         }
         .menuBarExtraStyle(.window)
     }

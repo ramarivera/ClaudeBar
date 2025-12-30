@@ -267,6 +267,7 @@ struct MenuContentView: View {
                     ) {
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
                             selectedProviderId = provider.id
+                            appState.selectedProviderId = provider.id  // Sync to AppState for menu bar icon
                         }
                     }
                 }
