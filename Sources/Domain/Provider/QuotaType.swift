@@ -9,6 +9,8 @@ public enum QuotaType: Sendable, Equatable, Hashable {
     case weekly
     /// Model-specific limit (e.g., "opus", "sonnet")
     case modelSpecific(String)
+    /// Generic time-based limit (e.g., "MCP Usage")
+    case timeLimit(String)
 
     /// Human-readable display name for this quota type
     public var displayName: String {
@@ -19,6 +21,8 @@ public enum QuotaType: Sendable, Equatable, Hashable {
             "Weekly"
         case .modelSpecific(let modelName):
             modelName.capitalized
+        case .timeLimit(let name):
+            name.capitalized
         }
     }
 
@@ -31,6 +35,8 @@ public enum QuotaType: Sendable, Equatable, Hashable {
             .days(7)
         case .modelSpecific:
             .days(7) // Model-specific limits typically follow weekly windows
+        case .timeLimit:
+            .days(7) // Generic time limits default to weekly
         }
     }
 

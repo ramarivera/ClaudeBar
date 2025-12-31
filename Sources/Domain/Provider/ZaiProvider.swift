@@ -46,6 +46,7 @@ public final class ZaiProvider: AIProvider, @unchecked Sendable {
 
     // MARK: - AIProvider Protocol
 
+    /// Checks if the provider is available
     public func isAvailable() async -> Bool {
         await probe.isAvailable()
     }

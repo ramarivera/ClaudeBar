@@ -22,6 +22,11 @@ public struct ZaiUsageProbe: UsageProbe {
         .appendingPathComponent(".claude")
         .appendingPathComponent("settings.json")
 
+    /// Creates a new Z.ai usage probe
+    /// - Parameters:
+    ///   - cliExecutor: Executor for running CLI commands (defaults to DefaultCLIExecutor)
+    ///   - networkClient: Client for making network requests (defaults to URLSession.shared)
+    ///   - timeout: Timeout for operations in seconds (defaults to 10.0)
     public init(
         cliExecutor: (any CLIExecutor)? = nil,
         networkClient: (any NetworkClient)? = nil,
@@ -34,6 +39,7 @@ public struct ZaiUsageProbe: UsageProbe {
 
     // MARK: - UsageProbe
 
+    /// Checks if Z.ai is available by looking for Claude CLI and z.ai configuration
     public func isAvailable() async -> Bool {
         // Check if Claude CLI is installed
         guard cliExecutor.locate("claude") != nil else {
@@ -51,6 +57,7 @@ public struct ZaiUsageProbe: UsageProbe {
         }
     }
 
+    /// Fetches the current usage quota from Z.ai API
     public func probe() async throws -> UsageSnapshot {
         AppLog.probes.info("Starting Z.ai probe...")
 
@@ -93,7 +100,7 @@ public struct ZaiUsageProbe: UsageProbe {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = timeout
-        request.setValue(apiKey, forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("en-US,en", forHTTPHeaderField: "Accept-Language")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
@@ -274,7 +281,7 @@ public struct ZaiUsageProbe: UsageProbe {
             case "TOKENS_LIMIT":
                 quotaType = .session
             case "TIME_LIMIT":
-                quotaType = .modelSpecific("MCP")
+                quotaType = .timeLimit("MCP")
             default:
                 // Skip unknown limit types
                 continue

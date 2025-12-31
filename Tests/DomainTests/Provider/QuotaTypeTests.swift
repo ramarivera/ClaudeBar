@@ -30,6 +30,12 @@ struct QuotaTypeTests {
         #expect(QuotaType.modelSpecific("claude-3-opus").displayName == "Claude-3-Opus")
     }
 
+    @Test
+    func `time limit quota capitalizes name`() {
+        #expect(QuotaType.timeLimit("mcp").displayName == "Mcp")
+        #expect(QuotaType.timeLimit("daily limit").displayName == "Daily Limit")
+    }
+
     // MARK: - Duration Tests
 
     @Test
@@ -47,6 +53,11 @@ struct QuotaTypeTests {
         #expect(QuotaType.modelSpecific("opus").duration == .days(7))
     }
 
+    @Test
+    func `time limit quota has 7 day duration`() {
+        #expect(QuotaType.timeLimit("any").duration == .days(7))
+    }
+
     // MARK: - Model Name Tests
 
     @Test
@@ -57,6 +68,11 @@ struct QuotaTypeTests {
     @Test
     func `weekly quota has no model name`() {
         #expect(QuotaType.weekly.modelName == nil)
+    }
+
+    @Test
+    func `time limit quota has no model name`() {
+        #expect(QuotaType.timeLimit("mcp").modelName == nil)
     }
 
     @Test

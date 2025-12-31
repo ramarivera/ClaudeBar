@@ -125,7 +125,7 @@ struct ZaiUsageProbeParsingTests {
         let snapshot = try ZaiUsageProbe.parseQuotaLimitResponse(data, providerId: "zai")
 
         // Then
-        let timeQuota = snapshot.quotas.first { $0.quotaType == .modelSpecific("MCP") }
+        let timeQuota = snapshot.quotas.first { $0.quotaType == .timeLimit("MCP") }
         #expect(timeQuota != nil)
         #expect(timeQuota?.percentRemaining == 70.0) // 100 - 30 = 70
     }

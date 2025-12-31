@@ -718,6 +718,7 @@ struct WrappedStatCard: View {
         case .session: return "bolt.fill"
         case .weekly: return "calendar.badge.clock"
         case .modelSpecific: return "cpu.fill"
+        case .timeLimit: return "clock.fill"
         }
     }
 }
