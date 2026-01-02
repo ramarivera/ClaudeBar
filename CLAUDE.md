@@ -51,99 +51,23 @@ tuist generate
 
 ## Architecture
 
-The project follows a layered architecture with `QuotaMonitor` as the single source of truth:
+> **Full documentation:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         DOMAIN LAYER                                 │
-│                                                                      │
-│  QuotaMonitor (@Observable) - Single Source of Truth                │
-│  ├── providers: AIProviders (private repository)                    │
-│  ├── Delegation: allProviders, enabledProviders, provider(for:)     │
-│  ├── Selection: selectedProviderId, selectedProvider                │
-│  └── Operations: refreshAll(), addProvider(), removeProvider()      │
-│                                                                      │
-│  AIProviders (@Observable) - Provider Collection Repository          │
-│  ├── all: [AIProvider]                                              │
-│  ├── enabled: [AIProvider] (filters by isEnabled)                   │
-│  └── add(), remove(), provider(id:)                                 │
-│                                                                      │
-│  AIProvider (@Observable) - Rich Domain Model                        │
-│  ├── isEnabled: Bool (via ProviderSettingsRepository)               │
-│  ├── snapshot: UsageSnapshot?                                       │
-│  └── refresh() async                                                │
-│                                                                      │
-│  Repository Protocols (Injected Dependencies)                        │
-│  ├── ProviderSettingsRepository - persists isEnabled state          │
-│  └── CredentialRepository - stores tokens/credentials               │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              │ Views consume directly (no AppState)
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                           APP LAYER                                  │
-│  ClaudeBarApp: @State var monitor: QuotaMonitor                     │
-│  Views: MenuContentView(monitor), SettingsView(monitor)             │
-└─────────────────────────────────────────────────────────────────────┘
-```
+The project follows a **layered architecture** with `QuotaMonitor` as the single source of truth:
 
-### Layers
-
-- **Domain** (`Sources/Domain/`): Pure business logic with no external dependencies
-  - Provider (`Provider/`):
-    - `AIProvider` protocol - rich domain model with `isEnabled` state
-    - `AIProviderRepository` protocol - collection management
-    - `ProviderSettingsRepository` protocol - persists provider settings (isEnabled)
-    - `CredentialRepository` protocol - stores tokens/credentials
-    - `UsageProbe` protocol, rich models (`UsageQuota`, `UsageSnapshot`, `QuotaStatus`)
-  - Monitor (`Monitor/`): `QuotaMonitor` @Observable class (single source of truth) and `QuotaStatusListener` protocol
-
-- **Infrastructure** (`Sources/Infrastructure/`): Technical implementations
-  - CLI (`CLI/`): Probes and protocols for CLI interaction
-    - `ClaudeUsageProbe` - probes Claude CLI, uses `CLIExecutor` for testability
-    - `CodexUsageProbe` - delegates to `CodexRPCClient` (single dependency)
-    - `CodexRPCClient` protocol - "Is it available?" and "Get my stats"
-    - `DefaultCodexRPCClient` - RPC via `RPCTransport`, falls back to TTY via `CLIExecutor`
-    - `CLIExecutor` protocol - abstracts CLI interaction (locate binary, execute commands)
-    - `RPCTransport` protocol - abstracts JSON-RPC communication
-    - `GeminiUsageProbe` - coordinates `GeminiAPIProbe` with network client
-    - `GeminiProjectRepository` - discovers Gemini projects for quota lookup
-    - `CopilotUsageProbe` - probes GitHub Copilot usage via credentials and API
-    - `AntigravityUsageProbe` - probes local Antigravity language server via process detection and local API
-  - Storage (`Storage/`): Repository implementations
-    - `AIProviders` - implements `AIProviderRepository` for provider collection
-    - `UserDefaultsProviderSettingsRepository` - persists settings to UserDefaults
-    - `UserDefaultsCredentialRepository` - stores credentials in UserDefaults
-  - Adapters (`Adapters/`): Pure adapters for 3rd party interaction (excluded from coverage)
-    - `PTYCommandRunner` - runs CLI commands with PTY for interactive prompts
-    - `ProcessRPCTransport` - JSON-RPC over Process stdin/stdout pipes
-    - `DefaultCLIExecutor` - real CLI execution using PTYCommandRunner
-    - `InsecureLocalhostNetworkClient` - NetworkClient that accepts self-signed certs for localhost (used by Antigravity)
-  - Network (`Network/`): `NetworkClient` protocol for HTTP abstraction
-  - Notifications (`Notifications/`): `QuotaAlerter` - alerts users when quota degrades
-
-- **App** (`Sources/App/`): SwiftUI menu bar application
-  - Views directly consume `QuotaMonitor` (no ViewModel, no AppState layer)
-  - `StatusBarIcon` - menu bar icon with status indicator
+| Layer | Location | Purpose |
+|-------|----------|---------|
+| **Domain** | `Sources/Domain/` | Pure business logic, rich models, protocols |
+| **Infrastructure** | `Sources/Infrastructure/` | Probes, storage, adapters, network |
+| **App** | `Sources/App/` | SwiftUI views consuming domain directly |
 
 ### Key Patterns
 
-- **Protocol-Based DI**: Domain defines protocols (`UsageProbe`, `QuotaStatusListener`, `ProviderSettingsRepository`, `CredentialRepository`), infrastructure provides implementations
-- **Repository Pattern**: Settings and credentials are abstracted behind repository protocols, allowing easy mocking and alternative implementations
-- **@Observable pattern**: `QuotaMonitor` and `AIProviders` use `@Observable` for SwiftUI reactivity
-- **Chicago School TDD**: Tests focus on state changes and return values, not method call verification
-- **Mockable protocol mocks**: Uses `@Mockable` macro from Mockable package for test doubles
-- **Swift Testing framework**: Tests use `@Test` and `@Suite` attributes, not XCTest
-- **Adapters folder**: Pure 3rd-party wrappers excluded from code coverage
-
-### Testability Design
-
-The codebase separates testable logic from external system interaction:
-
-- **Protocols with `@Mockable`**: `CLIExecutor`, `RPCTransport`, `CodexRPCClient`, `NetworkClient`, `ProviderSettingsRepository`, `CredentialRepository` - all mockable for unit tests
-- **Repository injection**: Providers receive repositories via constructor injection, enabling parallel test execution without UserDefaults pollution
-- **Adapters folder**: Pure adapters (`PTYCommandRunner`, `ProcessRPCTransport`) are excluded from code coverage since they only wrap system APIs
-- **Parsing logic**: Kept as static/internal methods for direct testing without mocks
+- **Single Source of Truth** - `QuotaMonitor` owns all provider state
+- **Repository Pattern** - `ProviderSettingsRepository`, `CredentialRepository` for testability
+- **Protocol-Based DI** - `@Mockable` protocols enable testing without real CLI/network
+- **Chicago School TDD** - Tests verify state changes, not method calls
+- **No ViewModel/AppState** - Views consume `QuotaMonitor` directly
 
 ### Adding a New AI Provider
 

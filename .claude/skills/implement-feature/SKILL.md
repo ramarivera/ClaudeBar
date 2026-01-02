@@ -182,51 +182,15 @@ public protocol UsageProbe: Sendable {
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         DOMAIN LAYER                                 │
-│                                                                      │
-│  QuotaMonitor (actor) - Single Source of Truth                      │
-│  ├── providers: AIProviders (repository)                            │
-│  ├── selectedProviderId, selectedProvider, selectedProviderStatus   │
-│  ├── refreshAll(), selectProvider(), ensureValidSelection()         │
-│  └── overallStatus(), enabledProviders                              │
-│                                                                      │
-│  AIProviders (@Observable) - Provider Collection Repository          │
-│  ├── all: [AIProvider]                                              │
-│  ├── enabled: [AIProvider] (computed, filters by isEnabled)         │
-│  └── add(), remove(), provider(id:)                                 │
-│                                                                      │
-│  AIProvider (@Observable) - Rich Domain Model                        │
-│  ├── isEnabled: Bool (via ProviderSettingsRepository)               │
-│  ├── snapshot: UsageSnapshot?                                       │
-│  └── refresh() async                                                │
-│                                                                      │
-│  Repository Protocols (Injected Dependencies)                        │
-│  ├── ProviderSettingsRepository - persists isEnabled state          │
-│  └── CredentialRepository - stores tokens/credentials               │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              │ Views consume directly
-                              ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                           APP LAYER                                  │
-│                                                                      │
-│  ClaudeBarApp                                                       │
-│  └── @State var monitor: QuotaMonitor  (injected to views)          │
-│                                                                      │
-│  Views                                                              │
-│  ├── MenuContentView(monitor: QuotaMonitor)                         │
-│  ├── SettingsView(monitor: QuotaMonitor)                            │
-│  └── NO AppState, NO ViewModel - consume domain directly            │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
+> **Full documentation:** [docs/ARCHITECTURE.md](../../../docs/ARCHITECTURE.md)
 
-Infrastructure (Sources/Infrastructure/)
-├── Storage (UserDefaultsProviderSettingsRepository, CredentialRepository)
-├── Protocol implementations (probes, network clients)
-└── Adapters (excluded from coverage)
-```
+| Layer | Location | Purpose |
+|-------|----------|---------|
+| **Domain** | `Sources/Domain/` | `QuotaMonitor` (single source of truth), rich models, protocols |
+| **Infrastructure** | `Sources/Infrastructure/` | Probes, storage, adapters |
+| **App** | `Sources/App/` | SwiftUI views consuming domain directly (no ViewModel) |
+
+**Key patterns:** Repository Pattern, Protocol-Based DI, Chicago School TDD, No ViewModel layer.
 
 ## TDD Workflow (Chicago School)
 

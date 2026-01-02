@@ -124,51 +124,23 @@ After opening in Xcode, SwiftUI previews will work with `Cmd+Option+Return`.
 
 ## Architecture
 
-ClaudeBar uses a layered architecture with `QuotaMonitor` as the single source of truth:
+> **Full documentation:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                       App Layer                          │
-│  ClaudeBarApp: @State var monitor: QuotaMonitor         │
-│  Views consume QuotaMonitor directly (no AppState)       │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│                     Domain Layer                         │
-│  QuotaMonitor (actor) - Single Source of Truth          │
-│  ├── AIProviders repository (private)                   │
-│  ├── allProviders, enabledProviders, provider(for:)     │
-│  └── addProvider(), removeProvider()                    │
-│                                                          │
-│  AIProvider - Rich domain model with isEnabled state    │
-│  Models: UsageQuota, UsageSnapshot, QuotaStatus         │
-│                                                          │
-│  Repository Protocols (Injected Dependencies)           │
-│  ├── ProviderSettingsRepository - persists isEnabled    │
-│  └── CredentialRepository - stores tokens/credentials   │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│                 Infrastructure Layer                     │
-│  Probes: Claude, Codex, Gemini, Copilot, Antigravity, Z.ai │
-│  Storage: UserDefaultsProviderSettingsRepository,       │
-│           UserDefaultsCredentialRepository              │
-│  Adapters: Pure 3rd-party wrappers (no coverage)        │
-└─────────────────────────────────────────────────────────┘
-```
+ClaudeBar uses a **layered architecture** with `QuotaMonitor` as the single source of truth:
+
+| Layer | Purpose |
+|-------|---------|
+| **App** | SwiftUI views consuming domain directly (no ViewModel) |
+| **Domain** | Rich models, `QuotaMonitor`, repository protocols |
+| **Infrastructure** | Probes, storage implementations, adapters |
 
 ### Key Design Decisions
 
-- **Rich Domain Models** - Business logic lives in domain models, not ViewModels
-- **Single Source of Truth** - `QuotaMonitor` owns all provider state and selection
+- **Single Source of Truth** - `QuotaMonitor` owns all provider state
 - **Repository Pattern** - Settings and credentials abstracted behind injectable protocols
-- **Actor-Based Concurrency** - Thread-safe state management with Swift actors
-- **Protocol-Based DI** - `@Mockable` protocols enable testability without real CLI/network
-- **Chicago School TDD** - Tests verify state changes, not method call interactions
-- **Adapters Folder** - Pure 3rd-party wrappers excluded from code coverage
-- **No ViewModel/AppState Layer** - SwiftUI views directly consume `QuotaMonitor`
+- **Protocol-Based DI** - `@Mockable` protocols enable testability
+- **Chicago School TDD** - Tests verify state changes, not method calls
+- **No ViewModel/AppState** - Views consume domain directly
 
 ## Contributing
 
