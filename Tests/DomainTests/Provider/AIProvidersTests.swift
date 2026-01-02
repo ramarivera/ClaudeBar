@@ -3,8 +3,18 @@ import Foundation
 import Mockable
 @testable import Domain
 
-@Suite
+@Suite(.serialized)
 struct AIProvidersTests {
+
+    // Clear UserDefaults for provider enabled keys before each test
+    init() {
+        UserDefaults.standard.removeObject(forKey: "provider.claude.isEnabled")
+        UserDefaults.standard.removeObject(forKey: "provider.codex.isEnabled")
+        UserDefaults.standard.removeObject(forKey: "provider.gemini.isEnabled")
+        UserDefaults.standard.removeObject(forKey: "provider.copilot.isEnabled")
+        UserDefaults.standard.removeObject(forKey: "provider.antigravity.isEnabled")
+        UserDefaults.standard.removeObject(forKey: "provider.zai.isEnabled")
+    }
 
     // MARK: - All Providers
 

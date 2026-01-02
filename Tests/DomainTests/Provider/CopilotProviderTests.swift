@@ -3,8 +3,13 @@ import Foundation
 import Mockable
 @testable import Domain
 
-@Suite("CopilotProvider Tests")
+@Suite("CopilotProvider Tests", .serialized)
 struct CopilotProviderTests {
+
+    // Clear UserDefaults for provider enabled keys before each test
+    init() {
+        UserDefaults.standard.removeObject(forKey: "provider.copilot.isEnabled")
+    }
 
     // MARK: - Identity Tests
 
@@ -51,11 +56,12 @@ struct CopilotProviderTests {
     }
 
     @Test
-    func `copilot provider is enabled by default`() {
+    func `copilot provider is disabled by default`() {
+        // CopilotProvider defaults to disabled since it requires manual setup
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe)
 
-        #expect(copilot.isEnabled == true)
+        #expect(copilot.isEnabled == false)
     }
 
     // MARK: - State Tests
