@@ -6,45 +6,13 @@ import Mockable
 @Suite("CopilotProvider Tests")
 struct CopilotProviderTests {
 
-    /// Creates a mock settings repository that returns true for all providers
-    /// Note: CopilotProvider defaults to disabled, so tests that check isEnabled == false
-    /// need the mock to return false for "copilot"
-    private func makeSettingsRepository(copilotEnabled: Bool = true) -> MockProviderSettingsRepository {
-        let mock = MockProviderSettingsRepository()
-        given(mock).isEnabled(forProvider: .any, defaultValue: .any).willReturn(copilotEnabled)
-        given(mock).isEnabled(forProvider: .any).willReturn(copilotEnabled)
-        given(mock).setEnabled(.any, forProvider: .any).willReturn()
-        return mock
-    }
-
-    /// Creates a mock credential repository for testing
-    private func makeCredentialRepository(username: String = "", hasToken: Bool = false) -> MockCredentialRepository {
-        let mock = MockCredentialRepository()
-        given(mock).get(forKey: .any).willReturn(username.isEmpty ? nil : username)
-        given(mock).exists(forKey: .any).willReturn(hasToken)
-        given(mock).save(.any, forKey: .any).willReturn()
-        given(mock).delete(forKey: .any).willReturn()
-        return mock
-    }
-
-    private func makeConfigRepository() -> MockProviderConfigRepository {
-        let mock = MockProviderConfigRepository()
-        given(mock).zaiConfigPath().willReturn("")
-        given(mock).glmAuthEnvVar().willReturn("")
-        given(mock).copilotAuthEnvVar().willReturn("")
-        given(mock).setZaiConfigPath(.any).willReturn()
-        given(mock).setGlmAuthEnvVar(.any).willReturn()
-        given(mock).setCopilotAuthEnvVar(.any).willReturn()
-        return mock
-    }
-
     // MARK: - Identity Tests
 
     @Test
     func `copilot provider has correct id`() {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
 
@@ -53,9 +21,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider has correct name`() {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
 
@@ -64,9 +32,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider has correct cliCommand`() {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
 
@@ -75,9 +43,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider has dashboard URL pointing to GitHub`() {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
 
@@ -87,9 +55,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider has status page URL`() {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
 
@@ -100,9 +68,9 @@ struct CopilotProviderTests {
     @Test
     func `copilot provider is disabled by default`() {
         // CopilotProvider defaults to disabled since it requires manual setup
-        let settings = makeSettingsRepository(copilotEnabled: false)
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository(enabled: false)
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
 
@@ -113,9 +81,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider saves token to credential store`() {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
 
@@ -124,9 +92,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider starts not syncing`() {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
 
@@ -135,9 +103,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider starts with no error`() {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
 
@@ -148,9 +116,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider delegates isAvailable to probe`() async {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         given(mockProbe).isAvailable().willReturn(true)
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
@@ -162,9 +130,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider delegates isAvailable false to probe`() async {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         given(mockProbe).isAvailable().willReturn(false)
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
@@ -176,9 +144,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider delegates refresh to probe`() async throws {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let expectedSnapshot = UsageSnapshot(
             providerId: "copilot",
             quotas: [UsageQuota(percentRemaining: 95, quotaType: .session, providerId: "copilot", resetText: "100/2000 requests")],
@@ -199,9 +167,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider stores snapshot after refresh`() async throws {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let expectedSnapshot = UsageSnapshot(
             providerId: "copilot",
             quotas: [UsageQuota(percentRemaining: 80, quotaType: .session, providerId: "copilot")],
@@ -221,9 +189,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider clears error on successful refresh`() async throws {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         // Use two separate probes to simulate the behavior
         let failingProbe = MockUsageProbe()
         given(failingProbe).probe().willThrow(ProbeError.timeout)
@@ -251,9 +219,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider stores error on refresh failure`() async {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         given(mockProbe).probe().willThrow(ProbeError.authenticationRequired)
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
@@ -271,9 +239,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider rethrows probe errors`() async {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         given(mockProbe).probe().willThrow(ProbeError.authenticationRequired)
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
@@ -287,9 +255,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider resets isSyncing after refresh completes`() async throws {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         given(mockProbe).probe().willReturn(UsageSnapshot(
             providerId: "copilot",
@@ -307,9 +275,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider resets isSyncing after refresh fails`() async {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         given(mockProbe).probe().willThrow(ProbeError.timeout)
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
@@ -327,9 +295,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider has unique id compared to other providers`() {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
         let claude = ClaudeProvider(probe: mockProbe, settingsRepository: settings)
@@ -344,9 +312,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider loads username from credential store`() {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository(username: "testuser")
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository(username: "testuser")
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
 
@@ -355,9 +323,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider reports hasToken when token exists`() {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository(hasToken: true)
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository(hasToken: true)
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
 
@@ -366,9 +334,9 @@ struct CopilotProviderTests {
 
     @Test
     func `copilot provider reports hasToken when token does not exist`() {
-        let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository(hasToken: false)
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository(hasToken: false)
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
         let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
 
@@ -378,8 +346,8 @@ struct CopilotProviderTests {
     @Test
     func `copilot provider can retrieve saved token`() {
         // Given: a mock that returns the saved token
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let credentials = MockCredentialRepository()
         given(credentials).get(forKey: .value(CredentialKey.githubToken)).willReturn("ghp_test123")
         given(credentials).get(forKey: .value(CredentialKey.githubUsername)).willReturn(nil)
@@ -399,8 +367,8 @@ struct CopilotProviderTests {
     @Test
     func `copilot provider clears username after deleting credentials`() {
         // Given: a provider with username set
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let credentials = MockCredentialRepository()
         given(credentials).get(forKey: .value(CredentialKey.githubUsername)).willReturn("testuser")
         given(credentials).get(forKey: .value(CredentialKey.githubToken)).willReturn("ghp_token")

@@ -35,7 +35,7 @@ struct ClaudeBarApp: App {
             CodexProvider(probe: CodexUsageProbe(), settingsRepository: settingsRepository),
             GeminiProvider(probe: GeminiUsageProbe(), settingsRepository: settingsRepository),
             AntigravityProvider(probe: AntigravityUsageProbe(), settingsRepository: settingsRepository),
-            ZaiProvider(probe: ZaiUsageProbe(), settingsRepository: settingsRepository, configRepository: configRepository),
+            ZaiProvider(probe: ZaiUsageProbe(), settingsRepository: settingsRepository),
             CopilotProvider(probe: CopilotUsageProbe(), settingsRepository: settingsRepository, credentialRepository: credentialRepository, configRepository: configRepository),
         ])
         AppLog.providers.info("Created \(repository.all.count) providers")

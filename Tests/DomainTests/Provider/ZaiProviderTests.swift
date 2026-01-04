@@ -6,64 +6,40 @@ import Mockable
 @Suite("ZaiProvider Tests")
 struct ZaiProviderTests {
 
-    /// Creates a mock settings repository that returns true for all providers
-    private func makeSettingsRepository(zaiEnabled: Bool = true) -> MockProviderSettingsRepository {
-        let mock = MockProviderSettingsRepository()
-        given(mock).isEnabled(forProvider: .any, defaultValue: .any).willReturn(zaiEnabled)
-        given(mock).isEnabled(forProvider: .any).willReturn(zaiEnabled)
-        given(mock).setEnabled(.any, forProvider: .any).willReturn()
-        return mock
-    }
-
-    private func makeConfigRepository() -> MockProviderConfigRepository {
-        let mock = MockProviderConfigRepository()
-        given(mock).zaiConfigPath().willReturn("")
-        given(mock).glmAuthEnvVar().willReturn("")
-        given(mock).copilotAuthEnvVar().willReturn("")
-        given(mock).setZaiConfigPath(.any).willReturn()
-        given(mock).setGlmAuthEnvVar(.any).willReturn()
-        given(mock).setCopilotAuthEnvVar(.any).willReturn()
-        return mock
-    }
-
     // MARK: - Identity Tests
 
     @Test
     func `zai provider has correct id`() {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         #expect(zai.id == "zai")
     }
 
     @Test
     func `zai provider has correct name`() {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         #expect(zai.name == "Z.ai")
     }
 
     @Test
     func `zai provider has correct cliCommand`() {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         #expect(zai.cliCommand == "claude")
     }
 
     @Test
     func `zai provider has dashboard URL pointing to z.ai`() {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         #expect(zai.dashboardURL != nil)
         #expect(zai.dashboardURL?.host?.contains("z.ai") == true)
@@ -71,10 +47,9 @@ struct ZaiProviderTests {
 
     @Test
     func `zai provider has status page URL`() {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         #expect(zai.statusPageURL != nil)
         #expect(zai.statusPageURL?.host?.contains("z.ai") == true)
@@ -82,10 +57,9 @@ struct ZaiProviderTests {
 
     @Test
     func `zai provider is enabled by default`() {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         #expect(zai.isEnabled == true)
     }
@@ -94,30 +68,27 @@ struct ZaiProviderTests {
 
     @Test
     func `zai provider starts with no snapshot`() {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         #expect(zai.snapshot == nil)
     }
 
     @Test
     func `zai provider starts not syncing`() {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         #expect(zai.isSyncing == false)
     }
 
     @Test
     func `zai provider starts with no error`() {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         #expect(zai.lastError == nil)
     }
@@ -126,11 +97,10 @@ struct ZaiProviderTests {
 
     @Test
     func `zai provider delegates isAvailable to probe`() async {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
         given(mockProbe).isAvailable().willReturn(true)
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         let isAvailable = await zai.isAvailable()
 
@@ -139,11 +109,10 @@ struct ZaiProviderTests {
 
     @Test
     func `zai provider delegates isAvailable false to probe`() async {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
         given(mockProbe).isAvailable().willReturn(false)
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         let isAvailable = await zai.isAvailable()
 
@@ -152,8 +121,7 @@ struct ZaiProviderTests {
 
     @Test
     func `zai provider delegates refresh to probe`() async throws {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let expectedSnapshot = UsageSnapshot(
             providerId: "zai",
             quotas: [UsageQuota(percentRemaining: 95, quotaType: .session, providerId: "zai", resetText: "Resets in 1 hour")],
@@ -161,7 +129,7 @@ struct ZaiProviderTests {
         )
         let mockProbe = MockUsageProbe()
         given(mockProbe).probe().willReturn(expectedSnapshot)
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         let snapshot = try await zai.refresh()
 
@@ -174,8 +142,7 @@ struct ZaiProviderTests {
 
     @Test
     func `zai provider stores snapshot after refresh`() async throws {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let expectedSnapshot = UsageSnapshot(
             providerId: "zai",
             quotas: [UsageQuota(percentRemaining: 80, quotaType: .session, providerId: "zai")],
@@ -183,7 +150,7 @@ struct ZaiProviderTests {
         )
         let mockProbe = MockUsageProbe()
         given(mockProbe).probe().willReturn(expectedSnapshot)
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         #expect(zai.snapshot == nil)
 
@@ -195,12 +162,11 @@ struct ZaiProviderTests {
 
     @Test
     func `zai provider clears error on successful refresh`() async throws {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         // Use two separate probes to simulate the behavior
         let failingProbe = MockUsageProbe()
         given(failingProbe).probe().willThrow(ProbeError.timeout)
-        let zaiWithFailingProbe = ZaiProvider(probe: failingProbe, settingsRepository: settings, configRepository: config)
+        let zaiWithFailingProbe = ZaiProvider(probe: failingProbe, settingsRepository: settings)
 
         do {
             _ = try await zaiWithFailingProbe.refresh()
@@ -213,7 +179,7 @@ struct ZaiProviderTests {
         let succeedingProbe = MockUsageProbe()
         let snapshot = UsageSnapshot(providerId: "zai", quotas: [], capturedAt: Date())
         given(succeedingProbe).probe().willReturn(snapshot)
-        let zaiWithSucceedingProbe = ZaiProvider(probe: succeedingProbe, settingsRepository: settings, configRepository: config)
+        let zaiWithSucceedingProbe = ZaiProvider(probe: succeedingProbe, settingsRepository: settings)
 
         _ = try await zaiWithSucceedingProbe.refresh()
 
@@ -224,11 +190,10 @@ struct ZaiProviderTests {
 
     @Test
     func `zai provider stores error on refresh failure`() async {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
         given(mockProbe).probe().willThrow(ProbeError.executionFailed("Connection failed"))
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         #expect(zai.lastError == nil)
 
@@ -243,11 +208,10 @@ struct ZaiProviderTests {
 
     @Test
     func `zai provider rethrows probe errors`() async {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
         given(mockProbe).probe().willThrow(ProbeError.executionFailed("API error"))
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         await #expect(throws: ProbeError.executionFailed("API error")) {
             try await zai.refresh()
@@ -258,15 +222,14 @@ struct ZaiProviderTests {
 
     @Test
     func `zai provider resets isSyncing after refresh completes`() async throws {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
         given(mockProbe).probe().willReturn(UsageSnapshot(
             providerId: "zai",
             quotas: [],
             capturedAt: Date()
         ))
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         #expect(zai.isSyncing == false)
 
@@ -277,11 +240,10 @@ struct ZaiProviderTests {
 
     @Test
     func `zai provider resets isSyncing after refresh fails`() async {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
         let mockProbe = MockUsageProbe()
         given(mockProbe).probe().willThrow(ProbeError.timeout)
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
 
         do {
             _ = try await zai.refresh()
@@ -296,15 +258,11 @@ struct ZaiProviderTests {
 
     @Test
     func `zai provider has unique id compared to other providers`() {
-        let settings = makeSettingsRepository()
-        let config = makeConfigRepository()
-        let credentials = MockCredentialRepository()
-        given(credentials).get(forKey: .any).willReturn(nil)
-        given(credentials).exists(forKey: .any).willReturn(false)
-        given(credentials).save(.any, forKey: .any).willReturn()
-        given(credentials).delete(forKey: .any).willReturn()
+        let settings = MockRepositoryFactory.makeSettingsRepository()
+        let credentials = MockRepositoryFactory.makeCredentialRepository()
+        let config = MockRepositoryFactory.makeConfigRepository()
         let mockProbe = MockUsageProbe()
-        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings, configRepository: config)
+        let zai = ZaiProvider(probe: mockProbe, settingsRepository: settings)
         let claude = ClaudeProvider(probe: mockProbe, settingsRepository: settings)
         let codex = CodexProvider(probe: mockProbe, settingsRepository: settings)
         let gemini = GeminiProvider(probe: mockProbe, settingsRepository: settings)
