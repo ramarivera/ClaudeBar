@@ -95,6 +95,29 @@ ProviderSettingsRepository (base)
 | Z.ai | `ZaiSettingsRepository` |
 | Copilot | `CopilotSettingsRepository` |
 
+### Theme System
+
+> **Full documentation:** [docs/THEME_DESIGN.md](docs/THEME_DESIGN.md)
+
+The app uses a **protocol-based theme system** (`AppThemeProvider`) for pluggable themes:
+
+```
+Sources/App/Theme/
+├── AppThemeProvider.swift      # Protocol definition
+├── ThemeRegistry.swift         # Theme management
+├── ThemeEnvironment.swift      # SwiftUI environment key
+└── Themes/
+    ├── DarkTheme.swift         # Purple-pink glassmorphism
+    ├── LightTheme.swift        # Light mode variant
+    ├── CLITheme.swift          # Terminal aesthetic
+    └── ChristmasTheme.swift    # Festive with snowfall
+```
+
+**Adding a New Theme:**
+1. Create `Sources/App/Theme/Themes/MyTheme.swift` implementing `AppThemeProvider`
+2. Register in `ThemeRegistry.registerBuiltInThemes()`
+3. Add case to `ThemeMode` enum in `Theme.swift`
+
 ### Adding a New AI Provider
 
 Use the **add-provider** skill to guide you through adding new AI providers following TDD patterns:
