@@ -12,23 +12,26 @@ public struct ChristmasTheme: AppThemeProvider {
     public let icon = "snowflake"
     public let subtitle: String? = "Festive"
 
-    // MARK: - Christmas-Specific Colors
+    // MARK: - Christmas-Specific Colors (Matching original AppTheme)
 
     private let christmasBlack = Color(red: 0.08, green: 0.06, blue: 0.10)
-    private let christmasRed = Color(red: 0.92, green: 0.22, blue: 0.25)
-    private let christmasGreen = Color(red: 0.18, green: 0.72, blue: 0.38)
-    private let christmasGold = Color(red: 0.98, green: 0.82, blue: 0.32)
+    private let christmasRed = Color(red: 0.92, green: 0.12, blue: 0.15)      // Original red
+    private let christmasCrimson = Color(red: 0.72, green: 0.08, blue: 0.12)  // Darker red
+    private let christmasGreen = Color(red: 0.10, green: 0.72, blue: 0.32)    // Original green
+    private let christmasForest = Color(red: 0.05, green: 0.52, blue: 0.22)   // Darker green
+    private let christmasGold = Color(red: 1.0, green: 0.84, blue: 0.0)       // Original gold
+    private let christmasGoldWarm = Color(red: 0.95, green: 0.70, blue: 0.15) // Warm gold
     private let christmasSnow = Color(red: 0.98, green: 0.98, blue: 1.0)
     private let christmasDarkGreen = Color(red: 0.12, green: 0.45, blue: 0.28)
 
-    // MARK: - Background
+    // MARK: - Background (Matching original - red top, green bottom)
 
     public var backgroundGradient: LinearGradient {
         LinearGradient(
             colors: [
-                christmasBlack,
-                Color(red: 0.10, green: 0.08, blue: 0.14),
-                Color(red: 0.12, green: 0.10, blue: 0.16)
+                Color(red: 0.25, green: 0.05, blue: 0.08),  // Deep red tint top
+                Color(red: 0.10, green: 0.10, blue: 0.12),  // Charcoal middle
+                Color(red: 0.05, green: 0.18, blue: 0.10)   // Deep green tint bottom
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -42,13 +45,13 @@ public struct ChristmasTheme: AppThemeProvider {
         AnyView(ChristmasSnowfallOverlay(snowflakeCount: 25))
     }
 
-    // MARK: - Cards & Glass
+    // MARK: - Cards & Glass (Matching original AppTheme)
 
     public var cardGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color.white.opacity(0.15),
-                Color.white.opacity(0.08)
+                Color.white.opacity(0.12),
+                christmasGold.opacity(0.03)  // Subtle gold shimmer
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -56,15 +59,15 @@ public struct ChristmasTheme: AppThemeProvider {
     }
 
     public var glassBackground: Color {
-        Color.white.opacity(0.12)
+        Color.white.opacity(0.10)  // Match original
     }
 
     public var glassBorder: Color {
-        christmasGold.opacity(0.35)
+        christmasGold.opacity(0.6)  // Match original AppTheme
     }
 
     public var glassHighlight: Color {
-        christmasGold.opacity(0.25)
+        christmasGold.opacity(0.7)  // Match original AppTheme
     }
 
     public var cardCornerRadius: CGFloat { 14 }
@@ -84,35 +87,38 @@ public struct ChristmasTheme: AppThemeProvider {
     public var statusCritical: Color { christmasRed }
     public var statusDepleted: Color { christmasRed.opacity(0.7) }
 
-    // MARK: - Accents
+    // MARK: - Accents (Matching original AppTheme)
 
     public var accentPrimary: Color { christmasRed }
     public var accentSecondary: Color { christmasGreen }
 
+    /// Christmas accent gradient - red to gold (festive!)
     public var accentGradient: LinearGradient {
         LinearGradient(
-            colors: [christmasRed, christmasGreen],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            colors: [christmasRed, christmasGold],
+            startPoint: .leading,
+            endPoint: .trailing
         )
     }
 
+    /// Christmas pill gradient - subtle red/green shimmer
     public var pillGradient: LinearGradient {
         LinearGradient(
             colors: [
-                christmasGreen.opacity(0.5),
-                christmasRed.opacity(0.3)
+                christmasRed.opacity(0.3),
+                christmasGreen.opacity(0.2)
             ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            startPoint: .leading,
+            endPoint: .trailing
         )
     }
 
+    /// Christmas gold gradient - for share button
     public var shareGradient: LinearGradient {
         LinearGradient(
-            colors: [christmasGold, christmasGold.opacity(0.7)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+            colors: [christmasGold, christmasGoldWarm],
+            startPoint: .leading,
+            endPoint: .trailing
         )
     }
 
