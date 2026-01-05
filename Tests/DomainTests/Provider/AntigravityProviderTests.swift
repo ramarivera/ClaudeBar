@@ -2,6 +2,7 @@ import Testing
 import Foundation
 import Mockable
 @testable import Domain
+@testable import Infrastructure
 
 @Suite("AntigravityProvider Tests")
 struct AntigravityProviderTests {
@@ -15,26 +16,6 @@ struct AntigravityProviderTests {
         return mock
     }
 
-    /// Creates a mock credential repository for testing (used when creating CopilotProvider in uniqueness tests)
-    private func makeCredentialRepository() -> MockCredentialRepository {
-        let mock = MockCredentialRepository()
-        given(mock).get(forKey: .any).willReturn(nil)
-        given(mock).exists(forKey: .any).willReturn(false)
-        given(mock).save(.any, forKey: .any).willReturn()
-        given(mock).delete(forKey: .any).willReturn()
-        return mock
-    }
-
-    private func makeConfigRepository() -> MockProviderConfigRepository {
-        let mock = MockProviderConfigRepository()
-        given(mock).zaiConfigPath().willReturn("")
-        given(mock).glmAuthEnvVar().willReturn("")
-        given(mock).copilotAuthEnvVar().willReturn("")
-        given(mock).setZaiConfigPath(.any).willReturn()
-        given(mock).setGlmAuthEnvVar(.any).willReturn()
-        given(mock).setCopilotAuthEnvVar(.any).willReturn()
-        return mock
-    }
 
     // MARK: - Identity Tests
 
@@ -287,14 +268,13 @@ struct AntigravityProviderTests {
     @Test
     func `antigravity provider has unique id compared to other providers`() {
         let settings = makeSettingsRepository()
-        let credentials = makeCredentialRepository()
+        let copilotSettings = MockRepositoryFactory.makeCopilotSettingsRepository()
         let mockProbe = MockUsageProbe()
-        let config = makeConfigRepository()
         let antigravity = AntigravityProvider(probe: mockProbe, settingsRepository: settings)
         let claude = ClaudeProvider(probe: mockProbe, settingsRepository: settings)
         let codex = CodexProvider(probe: mockProbe, settingsRepository: settings)
         let gemini = GeminiProvider(probe: mockProbe, settingsRepository: settings)
-        let copilot = CopilotProvider(probe: mockProbe, settingsRepository: settings, credentialRepository: credentials, configRepository: config)
+        let copilot = CopilotProvider(probe: mockProbe, settingsRepository: copilotSettings)
 
         let ids = Set([antigravity.id, claude.id, codex.id, gemini.id, copilot.id])
         #expect(ids.count == 5) // All unique
