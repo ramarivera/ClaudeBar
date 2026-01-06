@@ -203,6 +203,12 @@ struct SettingsContentView: View {
             }
         } label: {
             providersHeader
+                .contentShape(.rect)
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        providersExpanded.toggle()
+                    }
+                }
         }
         .padding(14)
         .background(
@@ -338,6 +344,12 @@ struct SettingsContentView: View {
         } label: {
             // Header row with icon, title, toggle
             claudeBudgetHeader
+                .contentShape(.rect)
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        claudeBudgetExpanded.toggle()
+                    }
+                }
         }
         .padding(14)
         .background(
@@ -460,6 +472,12 @@ struct SettingsContentView: View {
             copilotForm
         } label: {
             copilotHeader
+                .contentShape(.rect)
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        copilotIsExpanded.toggle()
+                    }
+                }
         }
         .padding(14)
         .background(
@@ -840,6 +858,12 @@ struct SettingsContentView: View {
 
                 Spacer()
             }
+            .contentShape(.rect)
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    zaiConfigExpanded.toggle()
+                }
+            }
         }
         .padding(14)
         .background(
@@ -969,6 +993,12 @@ struct SettingsContentView: View {
             }
         } label: {
             updatesHeader
+                .contentShape(.rect)
+                .onTapGesture {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        updatesExpanded.toggle()
+                    }
+                }
         }
         .padding(14)
         .background(
