@@ -31,8 +31,14 @@ internal struct GeminiAPIProbe {
         do {
             return try await probeAPI()
         } catch ProbeError.authenticationRequired {
-            AppLog.probes.info("Gemini: Token expired, running CLI to refresh...")
-            try await refreshTokenViaCLI()
+            AppLog.probes.info("Gemini: Token expired, attempting CLI refresh...")
+            do {
+                try await refreshTokenViaCLI()
+            } catch ProbeError.cliNotFound {
+                // If CLI is not available, we can't refresh - propagate original auth error
+                AppLog.probes.warning("Gemini: CLI not available for token refresh, authentication required")
+                throw ProbeError.authenticationRequired
+            }
             AppLog.probes.info("Gemini: Retrying API probe after token refresh...")
             do {
                 return try await probeAPI()
